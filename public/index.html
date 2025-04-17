@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 Temperature Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>ESP32 Temperature Dashboard</h1>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span class="status-text">Disconnected</span>
+      </div>
+    </header>
+    
+    <main>
+      <section class="current-reading">
+        <div class="card">
+          <h2>Current Temperature</h2>
+          <div class="temperature-display">
+            <span id="current-temp">--</span>
+            <span class="unit">°C</span>
+          </div>
+          <div class="last-updated">
+            Last updated: <span id="last-updated">Never</span>
+          </div>
+        </div>
+      </section>
+      
+      <section class="temperature-history">
+        <div class="card">
+          <h2>Temperature History</h2>
+          <div class="chart-container">
+            <canvas id="temperature-chart"></canvas>
+          </div>
+        </div>
+      </section>
+    </main>
+    
+    <footer>
+      <p>ESP32 Temperature Monitor | DHT11 Sensor</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
