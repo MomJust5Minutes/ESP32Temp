@@ -1,7 +1,13 @@
 import { Chart } from "@/components/ui/chart"
+import io from "socket.io-client" // Import socket.io-client
+
 document.addEventListener("DOMContentLoaded", () => {
-  // Connect to Socket.io server
-  const socket = io()
+  // Connect to Socket.io server with explicit configuration
+  const socket = io({
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    timeout: 20000,
+  })
 
   // DOM elements
   const currentTempElement = document.getElementById("current-temp")
@@ -79,9 +85,33 @@ document.addEventListener("DOMContentLoaded", () => {
     },
   })
 
-  // Socket.io event handlers
+  // Add this to your JavaScript
+  const noDataMessage = document.getElementById("no-data-message")
+  const refreshButton = document.getElementById("refresh-data")
+
+  // Show no-data message if no data received after 10 seconds
+  setTimeout(() => {
+    if (temperatureChart.data.datasets[0].data.length === 0) {
+      noDataMessage.style.display = "block"
+    }
+  }, 10000)
+
+  // Refresh button handler
+  refreshButton.addEventListener("click", () => {
+    socket.emit("request-data")
+    noDataMessage.style.display = "none"
+  })
+
+  // Debug connection status
   socket.on("connect", () => {
+    console.log("Socket.io connected with ID:", socket.id)
     updateConnectionStatus(true)
+    socket.emit("request-data")
+  })
+
+  socket.on("connect_error", (err) => {
+    console.error("Socket.io connection error:", err)
+    updateConnectionStatus(false)
   })
 
   socket.on("disconnect", () => {
@@ -89,11 +119,13 @@ document.addEventListener("DOMContentLoaded", () => {
   })
 
   socket.on("temperature-update", (data) => {
+    console.log("Received temperature update:", data)
     updateCurrentTemperature(data)
     addDataPoint(data)
   })
 
   socket.on("temperature-history", (data) => {
+    console.log("Received temperature history:", data)
     updateTemperatureHistory(data)
   })
 
@@ -108,40 +140,70 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Update current temperature display
+  // Update current temperature display with error handling
   function updateCurrentTemperature(data) {
-    currentTempElement.textContent = data.temperature.toFixed(1)
-    lastUpdatedElement.textContent = formatTimestamp(data.timestamp)
+    try {
+      if (!data || typeof data.temperature !== "number") {
+        console.warn("Invalid temperature data:", data)
+        return
+      }
+
+      currentTempElement.textContent = data.temperature.toFixed(1)
+      lastUpdatedElement.textContent = formatTimestamp(data.timestamp || Date.now())
+    } catch (error) {
+      console.error("Error updating temperature display:", error)
+    }
   }
 
-  // Add a new data point to the chart
+  // Add robust error handling for chart updates
   function addDataPoint(data) {
-    const time = formatTimeLabel(data.timestamp)
+    try {
+      if (!data || typeof data.temperature !== "number" || !data.timestamp) {
+        console.warn("Invalid data point:", data)
+        return
+      }
 
-    temperatureChart.data.labels.push(time)
-    temperatureChart.data.datasets[0].data.push(data.temperature)
+      const time = formatTimeLabel(data.timestamp)
 
-    // Keep only the last 20 data points
-    if (temperatureChart.data.labels.length > 20) {
-      temperatureChart.data.labels.shift()
-      temperatureChart.data.datasets[0].data.shift()
+      temperatureChart.data.labels.push(time)
+      temperatureChart.data.datasets[0].data.push(data.temperature)
+
+      // Keep only the last 20 data points
+      if (temperatureChart.data.labels.length > 20) {
+        temperatureChart.data.labels.shift()
+        temperatureChart.data.datasets[0].data.shift()
+      }
+
+      temperatureChart.update()
+    } catch (error) {
+      console.error("Error adding data point:", error)
     }
-
-    temperatureChart.update()
   }
 
   // Update temperature history
   function updateTemperatureHistory(data) {
+    console.log("Updating chart with data:", data)
+
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      console.warn("No temperature history data available")
+      return
+    }
+
     // Clear existing data
     temperatureChart.data.labels = []
     temperatureChart.data.datasets[0].data = []
 
     // Add all history data
     data.forEach((reading) => {
-      temperatureChart.data.labels.push(formatTimeLabel(reading.timestamp))
-      temperatureChart.data.datasets[0].data.push(reading.temperature)
+      if (reading && typeof reading.temperature === "number" && reading.timestamp) {
+        temperatureChart.data.labels.push(formatTimeLabel(reading.timestamp))
+        temperatureChart.data.datasets[0].data.push(reading.temperature)
+      } else {
+        console.warn("Invalid reading in history data:", reading)
+      }
     })
 
+    // Update chart with animation
     temperatureChart.update()
 
     // Update current temperature if we have data

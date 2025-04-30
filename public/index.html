@@ -25,6 +25,10 @@
           <div class="temperature-display">
             <span id="current-temp">--</span>
             <span class="unit">°C</span>
+            <div class="no-data-message" id="no-data-message" style="display: none;">
+              <p>No temperature data available</p>
+              <button id="refresh-data" class="refresh-button">Refresh</button>
+            </div>
           </div>
           <div class="last-updated">
             Last updated: <span id="last-updated">Never</span>

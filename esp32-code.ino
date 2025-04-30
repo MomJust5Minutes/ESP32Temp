@@ -62,6 +62,12 @@ void loop() {
 }
 
 void sendTemperatureData(float temperature) {
+  // Check if temperature reading is valid
+  if (isnan(temperature)) {
+    Serial.println("Failed to read valid temperature data!");
+    return;
+  }
+  
   HTTPClient http;
   
   // Your Domain name with URL path or IP address with path
@@ -70,14 +76,11 @@ void sendTemperatureData(float temperature) {
   // Specify content-type header
   http.addHeader("Content-Type", "application/json");
   
-  // Create JSON document
-  StaticJsonDocument<200> doc;
-  doc["temperature"] = temperature;
-  doc["timestamp"] = millis();
+  // Create JSON document with proper formatting
+  String requestBody = "{\"temperature\":" + String(temperature, 1) + ",\"timestamp\":" + String(millis()) + "}";
   
-  // Serialize JSON to string
-  String requestBody;
-  serializeJson(doc, requestBody);
+  Serial.print("Sending temperature data: ");
+  Serial.println(requestBody);
   
   // Send HTTP POST request
   int httpResponseCode = http.POST(requestBody);
