@@ -3,93 +3,127 @@
 #include <DHT.h>
 #include <ArduinoJson.h>
 
-// WiFi credentials
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+// Configurações do WiFi
+const char* ssid = "SUA_REDE_WIFI";      // Substitua pelo nome da sua rede WiFi
+const char* password = "SUA_SENHA_WIFI";  // Substitua pela senha da sua rede WiFi
 
-// Server details
-const char* serverUrl = "http://YOUR_SERVER_IP:3000/api/temperature";
+// Configurações do servidor
+const char* serverUrl = "http://172.20.10.11:3001/api/temperature";  // IP do seu computador na rede local
 
-// DHT sensor setup
-#define DHTPIN 4      // Digital pin connected to the DHT sensor
-#define DHTTYPE DHT11 // DHT 11
+// Configuração do sensor DHT11
+#define DHTPIN 4       // Pino digital conectado ao DHT11
+#define DHTTYPE DHT11  // Tipo do sensor (DHT11)
 DHT dht(DHTPIN, DHTTYPE);
 
-// Timing variables
+// Variáveis de tempo
 unsigned long lastTime = 0;
-unsigned long timerDelay = 5000; // Send readings every 5 seconds
+unsigned long timerDelay = 5000;  // Intervalo de 5 segundos entre as leituras
 
 void setup() {
   Serial.begin(115200);
+  delay(1000); // Aguarda a inicialização da serial
   
   // Initialize DHT sensor
   dht.begin();
+  Serial.println("Sensor DHT11 iniciado!");
   
-  // Connect to WiFi
+  // Conecta ao WiFi
+  WiFi.mode(WIFI_STA); // Configura explicitamente como station mode
   WiFi.begin(ssid, password);
-  Serial.println("Connecting to WiFi");
+  Serial.println("\nConectando ao WiFi...");
   
-  while (WiFi.status() != WL_CONNECTED) {
+  int tentativas = 0;
+  while (WiFi.status() != WL_CONNECTED && tentativas < 20) { // Timeout após 20 tentativas
     delay(500);
     Serial.print(".");
+    tentativas++;
+    
+    // A cada 5 tentativas, mostra o status
+    if (tentativas % 5 == 0) {
+      Serial.println();
+      Serial.print("Status WiFi: ");
+      switch(WiFi.status()) {
+        case WL_NO_SHIELD: Serial.println("Nenhum shield WiFi encontrado"); break;
+        case WL_IDLE_STATUS: Serial.println("Idle"); break;
+        case WL_NO_SSID_AVAIL: Serial.println("SSID não encontrado"); break;
+        case WL_SCAN_COMPLETED: Serial.println("Scan completo"); break;
+        case WL_CONNECT_FAILED: Serial.println("Falha na conexão"); break;
+        case WL_CONNECTION_LOST: Serial.println("Conexão perdida"); break;
+        case WL_DISCONNECTED: Serial.println("Desconectado"); break;
+        default: Serial.println("Status desconhecido");
+      }
+    }
   }
   
-  Serial.println("");
-  Serial.print("Connected to WiFi network with IP Address: ");
-  Serial.println(WiFi.localIP());
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nConexão WiFi estabelecida!");
+    Serial.print("Endereço IP: ");
+    Serial.println(WiFi.localIP());
+    Serial.print("Força do sinal (RSSI): ");
+    Serial.print(WiFi.RSSI());
+    Serial.println(" dBm");
+  } else {
+    Serial.println("\nFalha ao conectar ao WiFi!");
+    Serial.println("Reiniciando o ESP32...");
+    delay(2000);
+    ESP.restart();
+  }
 }
 
 void loop() {
-  // Check if it's time to send a new reading
+  // Verifica se é hora de fazer uma nova leitura
   if ((millis() - lastTime) > timerDelay) {
-    // Check WiFi connection status
+    // Verifica a conexão WiFi
     if (WiFi.status() == WL_CONNECTED) {
-      // Read temperature from DHT sensor
       float temperature = dht.readTemperature();
       
-      // Check if reading is valid
+      // Verifica se a leitura foi bem-sucedida
       if (isnan(temperature)) {
-        Serial.println("Failed to read from DHT sensor!");
+        Serial.println("Falha ao ler o sensor DHT11!");
       } else {
-        // Send temperature data to server
+        Serial.print("Temperatura: ");
+        Serial.print(temperature);
+        Serial.println("°C");
+        
+        // Envia os dados para o servidor
         sendTemperatureData(temperature);
       }
     } else {
-      Serial.println("WiFi Disconnected");
+      Serial.println("WiFi Desconectado");
+      // Tenta reconectar
+      WiFi.reconnect();
     }
     lastTime = millis();
   }
 }
 
 void sendTemperatureData(float temperature) {
-  // Check if temperature reading is valid
-  if (isnan(temperature)) {
-    Serial.println("Failed to read valid temperature data!");
-    return;
-  }
-  
   HTTPClient http;
   
-  // Your Domain name with URL path or IP address with path
+  // Inicia a conexão com o servidor
   http.begin(serverUrl);
-  
-  // Specify content-type header
   http.addHeader("Content-Type", "application/json");
   
-  // Create JSON document with proper formatting
-  String requestBody = "{\"temperature\":" + String(temperature, 1) + ",\"timestamp\":" + String(millis()) + "}";
+  // Cria o JSON com os dados
+  StaticJsonDocument<200> doc;
+  doc["temperature"] = temperature;
   
-  Serial.print("Sending temperature data: ");
-  Serial.println(requestBody);
+  String requestBody;
+  serializeJson(doc, requestBody);
   
-  // Send HTTP POST request
+  // Envia a requisição POST
   int httpResponseCode = http.POST(requestBody);
   
-  Serial.print("Temperature: ");
-  Serial.print(temperature);
-  Serial.print("°C - HTTP Response code: ");
-  Serial.println(httpResponseCode);
+  if (httpResponseCode > 0) {
+    Serial.print("Resposta HTTP: ");
+    Serial.println(httpResponseCode);
+    String response = http.getString();
+    Serial.println(response);
+  } else {
+    Serial.print("Erro no envio: ");
+    Serial.println(httpResponseCode);
+  }
   
-  // Free resources
+  // Libera os recursos
   http.end();
 }

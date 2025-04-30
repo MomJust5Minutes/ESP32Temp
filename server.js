@@ -1,8 +1,10 @@
 import express from "express"
 import { createServer } from "http"
-import { Server } from "socket.io"
 import { fileURLToPath } from "url"
 import { dirname, join } from "path"
+import cors from "cors"
+import { WebSocketServer } from "ws"
+import { WebSocket } from "ws"
 
 // Get the directory name
 const __filename = fileURLToPath(import.meta.url)
@@ -10,19 +12,22 @@ const __dirname = dirname(__filename)
 
 // Initialize Express app
 const app = express()
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST']
+}))
+app.use(express.json())
+
 const server = createServer(app)
-const io = new Server(server)
+const wss = new WebSocketServer({ 
+  server,
+  path: "/ws",
+  clientTracking: true
+})
 
 // Store temperature readings (last 20 readings)
 const temperatureReadings = []
 const MAX_READINGS = 20
-
-// Serve static files
-app.use(express.static(join(__dirname, "public")))
-app.use(express.json())
-
-// Add proper error handling and logging
-app.use(express.json({ strict: false }))
 
 // Add a middleware to log all requests
 app.use((req, res, next) => {
@@ -50,72 +55,93 @@ app.get("/api/test", (req, res) => {
 
 // Route to receive temperature data from ESP32
 app.post("/api/temperature", (req, res) => {
-  console.log("Received temperature data:", req.body)
-
-  // Ensure temperature is properly parsed as a number
-  let temperature
-  if (typeof req.body.temperature === "string") {
-    temperature = Number.parseFloat(req.body.temperature)
-  } else {
-    temperature = req.body.temperature
+  const { temperature } = req.body
+  
+  if (temperature === undefined) {
+    return res.status(400).json({ error: "Temperature data is required" })
   }
 
-  const timestamp = req.body.timestamp || Date.now()
-
-  if (temperature === undefined || isNaN(temperature)) {
-    console.error("Invalid temperature data received:", req.body)
-    return res.status(400).json({ error: "Temperature data is required and must be a number" })
+  const reading = {
+    temperature: parseFloat(temperature),
+    timestamp: Date.now(),
+    type: "temperature-update"
   }
 
-  // Add new reading
-  const newReading = {
-    temperature: temperature,
-    timestamp: timestamp,
-  }
-
-  console.log("Processed reading:", newReading)
-  temperatureReadings.push(newReading)
-
-  // Keep only the last MAX_READINGS readings
+  temperatureReadings.push(reading)
   if (temperatureReadings.length > MAX_READINGS) {
     temperatureReadings.shift()
   }
 
-  // Broadcast to all connected clients
-  console.log("Emitting temperature-update event")
-  io.emit("temperature-update", newReading)
-
-  // Send all readings when requested
-  console.log("Emitting temperature-history event")
-  io.emit("temperature-history", temperatureReadings)
+  // Enviar para todos os clientes WebSocket conectados
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      try {
+        client.send(JSON.stringify(reading))
+      } catch (error) {
+        console.error("Erro ao enviar dados para cliente WebSocket:", error)
+      }
+    }
+  })
 
   res.status(200).json({ success: true })
 })
 
-// Socket.io connection
-io.on("connection", (socket) => {
-  console.log("Client connected")
+// WebSocket connection handler
+wss.on("connection", (ws, req) => {
+  console.log("Novo cliente WebSocket conectado")
+  console.log("Endereço IP:", req.socket.remoteAddress)
+  
+  // Enviar histórico de leituras para o novo cliente
+  try {
+    ws.send(JSON.stringify({
+      type: "temperature-history",
+      data: temperatureReadings
+    }))
+  } catch (error) {
+    console.error("Erro ao enviar histórico para novo cliente:", error)
+  }
 
-  // Send temperature history to newly connected client
-  socket.emit("temperature-history", temperatureReadings)
-
-  socket.on("request-data", () => {
-    socket.emit("temperature-history", temperatureReadings)
+  // Tratamento de erros do WebSocket
+  ws.on("error", (error) => {
+    console.error("Erro no WebSocket:", error)
   })
 
-  socket.on("disconnect", () => {
-    console.log("Client disconnected")
+  ws.on("close", () => {
+    console.log("Cliente WebSocket desconectado")
   })
+
+  // Ping/Pong para manter a conexão ativa
+  ws.isAlive = true
+  ws.on("pong", () => {
+    ws.isAlive = true
+  })
+})
+
+// Verificação periódica de conexões ativas
+const interval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      console.log("Removendo cliente inativo")
+      return ws.terminate()
+    }
+    ws.isAlive = false
+    ws.ping()
+  })
+}, 30000)
+
+wss.on("close", () => {
+  clearInterval(interval)
 })
 
 // Add error handling middleware
 app.use((err, req, res, next) => {
-  console.error("Server error:", err)
-  res.status(500).json({ error: "Internal server error" })
+  console.error("Erro no servidor:", err)
+  res.status(500).json({ error: "Erro interno do servidor" })
 })
 
 // Start server
-const PORT = process.env.PORT || 3000
+const PORT = 3001
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}, accessible at http://172.20.10.2:${PORT}`)
+  console.log(`Servidor rodando na porta ${PORT}`)
+  console.log(`WebSocket disponível em ws://localhost:${PORT}/ws`)
 })
