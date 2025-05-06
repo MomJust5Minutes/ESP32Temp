@@ -11,6 +11,7 @@ Um dashboard de monitoramento de temperatura em tempo real que exibe dados de um
 - Suporte para vários tipos de sensores de temperatura (escolha um tipo de sensor por vez)
 - Leituras opcionais de umidade, pressão e altitude (dependendo do sensor)
 - Modo de simulação de dados para testes sem hardware físico
+- Sistema de configuração via arquivo .env para fácil configuração do WiFi e servidor
 
 ## Pré-requisitos
 
@@ -43,16 +44,28 @@ Um dashboard de monitoramento de temperatura em tempo real que exibe dados de um
    cd ESP32Temp
    ```
 
-2. Instale as dependências:
+2. Execute o script de configuração automática:
+   ```
+   npm run setup
+   ```
+   Este script irá:
+   - Criar um arquivo .env para configuração do servidor (se ainda não existir)
+   - Instalar todas as dependências necessárias
+   - Criar diretórios necessários
+   - Fornecer instruções para os próximos passos
+
+   Alternativamente, você pode instalar as dependências manualmente:
    ```
    npm install
    ```
-   ou se estiver usando pnpm:
+
+3. (Opcional) Edite o arquivo .env na raiz do projeto para personalizar a porta do servidor:
    ```
-   pnpm install
+   PORT=3001
+   HOST=0.0.0.0
    ```
 
-3. Inicie o servidor:
+4. Inicie o servidor:
    ```
    npm run server
    ```
@@ -61,14 +74,15 @@ Um dashboard de monitoramento de temperatura em tempo real que exibe dados de um
    node server.js
    ```
 
-4. Uma vez em execução, o servidor exibirá:
+5. Uma vez em execução, o servidor exibirá:
    ```
    Server running on port 3001
-   Server accessible at http://SEU_ENDEREÇO_IP:3001
-   WebSocket available at ws://SEU_ENDEREÇO_IP:3001/ws
+   Server accessible at:
+     http://192.168.1.100:3001
+     WebSocket available at ws://192.168.1.100:3001/ws
    ```
 
-5. Abra seu navegador e acesse a URL fornecida na saída do console
+6. Abra seu navegador e acesse a URL fornecida na saída do console
 
 ### Simulação de Dados (Opcional)
 
@@ -87,9 +101,54 @@ Se você ainda não tiver o hardware físico configurado, pode simular dados do 
 
 ### Configuração do ESP32
 
-#### Configuração das Credenciais
+#### Configuração via Interface de Configuração
 
-Antes de fazer o upload do código para o ESP32, você precisa configurar suas credenciais de WiFi e o endereço do servidor:
+Este projeto inclui um sistema de configuração via arquivo .env que elimina a necessidade de editar o código-fonte para configurar o WiFi e o endereço do servidor. Para usar este sistema:
+
+1. Primeiro, faça o upload do sketch de configuração para o ESP32:
+   - Abra o arquivo `lib/EnvConfig/EnvConfigManager.ino` no Arduino IDE
+   - Faça o upload para o ESP32
+   - Abra o Monitor Serial (configure para 115200 baud)
+
+2. Você verá um menu de configuração:
+   ```
+   ==== ESP32 Configuration Manager ====
+   
+   Current configuration:
+   --------------------------
+   # WiFi Configuration
+   WIFI_SSID="COLOQUE_SEU_SSID_AQUI"
+   WIFI_PASSWORD="COLOQUE_SUA_SENHA_AQUI"
+   
+   # Server Configuration
+   SERVER_URL="http://SEU_IP_SERVIDOR:3001/api/temperature"
+   --------------------------
+   
+   ==== Menu ====
+   1 - Show current configuration
+   2 - Update WiFi SSID
+   3 - Update WiFi Password
+   4 - Update Server URL
+   5 - Test WiFi connection with current settings
+   6 - Reset to default configuration
+   7 - Help
+   
+   Enter choice (1-7):
+   ```
+
+3. Use as opções do menu para configurar:
+   - Opção 2: Configure o nome da sua rede WiFi
+   - Opção 3: Configure a senha da sua rede WiFi
+   - Opção 4: Configure o URL do servidor (ex: `http://192.168.0.100:3001/api/temperature`)
+   - Opção 5: Teste se as configurações de WiFi estão corretas
+   
+4. Após configurar, carregue o sketch apropriado para o seu sensor (esp32-dht11.ino, esp32-bme280.ino ou esp32-lm35dz.ino)
+
+5. O ESP32 usará automaticamente as configurações salvas, sem necessidade de modificar o código.
+
+#### Configuração Manual (Método Alternativo)
+
+Se preferir, você ainda pode configurar diretamente no código conforme instruções abaixo:
 
 1. Abra o sketch do sensor que você está usando (esp32-dht11.ino, esp32-bme280.ino ou esp32-lm35dz.ino)
 
@@ -231,6 +290,12 @@ Escolha UMA das seguintes configurações de sensor:
 - Verifique se as bibliotecas apropriadas estão instaladas
 - Para o BME280, verifique o endereço I2C (0x76 ou 0x77)
 - Para o LM35DZ, verifique os valores de leitura analógica no Monitor Serial
+
+### Problemas com a Configuração .env
+- Se o ESP32 não estiver usando as configurações corretas, tente usar o gerenciador de configuração (EnvConfigManager.ino) para redefinir e reconfigurar
+- Verifique se o sistema de arquivos SPIFFS está funcionando corretamente
+- Se receber erros sobre SPIFFS, talvez seja necessário formatar a memória flash do ESP32 e tentar novamente
+- Certifique-se de que o URL do servidor está no formato correto (http://IP:PORTA/api/temperature)
 
 ## Configurações Avançadas
 

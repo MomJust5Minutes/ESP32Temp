@@ -1,6 +1,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <SPIFFS.h>
+#include "lib/EnvConfig/EnvConfig.h"
 
 // ==========================================
 // CONFIGURAÇÕES DO USUÁRIO - ALTERE AQUI
@@ -19,28 +21,82 @@ const char* serverUrl = "http://SEU_IP_SERVIDOR:3001/api/temperature";
 
 // LM35DZ sensor setup
 #define LM35PIN 34  // Analog pin connected to the LM35DZ sensor
-const float voltageReference = 3.3; // ESP32 ADC reference voltage (typically 3.3V)
-const int adcResolution = 4095;    // ESP32 ADC resolution (12-bit = 4095)
+
+// Configuration
+EnvConfig config;
 
 // Timing variables
 unsigned long lastTime = 0;
 unsigned long timerDelay = 5000; // Send readings every 5 seconds
 
+// Variables for smoothing readings
+const int numReadings = 10;
+float readings[numReadings];      // readings from the analog input
+int readIndex = 0;                // the index of the current reading
+float total = 0;                  // the running total
+float average = 0;                // the average
+
 void setup() {
   Serial.begin(115200);
   
-  // Connect to WiFi
-  WiFi.begin(ssid, password);
-  Serial.println("Connecting to WiFi");
+  Serial.println("\nESP32 with LM35DZ sensor starting up...");
   
-  while (WiFi.status() != WL_CONNECTED) {
-    if(WiFi.status() == WL_CONNECT_FAILED)
-    {
-      Serial.print("Not connected, leaving.");
-      return;
-    }
+  // Initialize SPIFFS
+  if (!SPIFFS.begin(true)) {
+    Serial.println("Failed to mount SPIFFS");
+    Serial.println("Using default WiFi and server settings");
+  } else {
+    Serial.println("SPIFFS mounted successfully");
+  }
+  
+  // Initialize configuration
+  if (!config.begin()) {
+    Serial.println("Failed to initialize configuration");
+    Serial.println("Using default WiFi and server settings");
+  }
+  
+  // Load configuration
+  if (!config.load()) {
+    Serial.println("No configuration file found or error loading file");
+    Serial.println("Creating default configuration file");
+    config.createDefaultConfig();
+    Serial.println("Using default WiFi and server settings");
+    Serial.println("Please upload the EnvConfigManager sketch to configure your settings");
+  } else {
+    Serial.println("Configuration loaded successfully");
+  }
+  
+  // Initialize readings array
+  for (int i = 0; i < numReadings; i++) {
+    readings[i] = 0;
+  }
+  
+  // Configure ADC
+  analogSetWidth(12);         // 12-bit resolution (0-4095)
+  analogSetAttenuation(ADC_11db);  // 11dB attenuation for full range
+  
+  // Connect to WiFi
+  const char* ssid = config.getSSID();
+  const char* password = config.getPassword();
+  
+  Serial.println("Connecting to WiFi");
+  Serial.print("SSID: ");
+  Serial.println(ssid);
+  
+  WiFi.begin(ssid, password);
+  
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
     delay(500);
     Serial.print(".");
+    attempts++;
+  }
+  
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("");
+    Serial.println("Failed to connect to WiFi after multiple attempts");
+    Serial.println("Please check your WiFi credentials in the config file");
+    return;
   }
   
   Serial.println("");
@@ -53,6 +109,8 @@ void setup() {
 
 void testServerConnection() {
   Serial.println("\n--- Testing Server Connection ---");
+  const char* serverUrl = config.getServerUrl();
+  
   Serial.print("Attempting to connect to: ");
   Serial.println(serverUrl);
   
@@ -88,37 +146,45 @@ void testServerConnection() {
   Serial.println("--- End of Test ---\n");
 }
 
-float readLM35Temperature() {
-  // Read the analog value from LM35DZ - take multiple readings for stability
-  int rawValue = 0;
-  for(int i = 0; i < 10; i++) {
-    rawValue += analogRead(LM35PIN);
-    delay(10);
-  }
-  int adcValue = rawValue / 10;
+float readTemperature() {
+  // Read from LM35DZ and apply smoothing
   
-  // Debug raw ADC value
-  Serial.print("Raw ADC value: ");
-  Serial.println(adcValue);
+  // Subtract the last reading
+  total = total - readings[readIndex];
   
-  // ESP32 has 12-bit ADC (0-4095) with 3.3V reference
-  // LM35DZ outputs 10mV per °C
-  float voltage = (adcValue * voltageReference) / adcResolution;
-  float temperature_celsius = voltage * 100.0;
+  // Read from the sensor
+  int adcVal = analogRead(LM35PIN);
   
-  // Debug voltage and calculation
-  Serial.print("Voltage: ");
-  Serial.print(voltage, 4);
-  Serial.print("V, Temperature: ");
-  Serial.print(temperature_celsius);
+  // Convert ADC value to voltage (0-3.3V range with 12-bit ADC)
+  float voltage = adcVal * (3.3 / 4095.0);
+  
+  // Convert voltage to temperature (LM35DZ outputs 10mV per degree C)
+  float tempC = voltage * 100.0;
+  
+  // Store in array for smoothing
+  readings[readIndex] = tempC;
+  
+  // Add the reading to the total
+  total = total + readings[readIndex];
+  
+  // Advance to the next position in the array
+  readIndex = (readIndex + 1) % numReadings;
+  
+  // Calculate the average
+  average = total / numReadings;
+  
+  // Debug output
+  Serial.print("ADC Value: ");
+  Serial.print(adcVal);
+  Serial.print(", Voltage: ");
+  Serial.print(voltage, 3);
+  Serial.print("V, Raw Temp: ");
+  Serial.print(tempC, 1);
+  Serial.print("°C, Smoothed: ");
+  Serial.print(average, 1);
   Serial.println("°C");
   
-  // Sanity check for reasonable values
-  if (temperature_celsius < 0 || temperature_celsius > 100) {
-    Serial.println("Warning: Temperature out of expected range (0-100°C)");
-  }
-  
-  return temperature_celsius;
+  return average;
 }
 
 void loop() {
@@ -127,12 +193,14 @@ void loop() {
     // Check WiFi connection status
     if (WiFi.status() == WL_CONNECTED) {
       // Read temperature from LM35DZ sensor
-      float temperature = readLM35Temperature();
+      float temperature = readTemperature();
       
       // Send temperature data to server
       sendTemperatureData(temperature);
     } else {
       Serial.println("WiFi Disconnected");
+      // Try to reconnect
+      WiFi.begin(config.getSSID(), config.getPassword());
     }
     lastTime = millis();
   }
@@ -142,6 +210,7 @@ void sendTemperatureData(float temperature) {
   HTTPClient http;
   
   // Your Domain name with URL path or IP address with path
+  const char* serverUrl = config.getServerUrl();
   http.begin(serverUrl);
   
   // Specify content-type header

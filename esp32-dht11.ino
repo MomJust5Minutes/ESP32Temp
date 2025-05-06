@@ -2,6 +2,8 @@
 #include <HTTPClient.h>
 #include <DHT.h>
 #include <ArduinoJson.h>
+#include <SPIFFS.h>
+#include "lib/EnvConfig/EnvConfig.h"
 
 // ==========================================
 // CONFIGURAÇÕES DO USUÁRIO - ALTERE AQUI
@@ -23,6 +25,9 @@ const char* serverUrl = "http://SEU_IP_SERVIDOR:3001/api/temperature";
 #define DHTTYPE DHT11 // DHT 11
 DHT dht(DHTPIN, DHTTYPE);
 
+// Configuration
+EnvConfig config;
+
 // Timing variables
 unsigned long lastTime = 0;
 unsigned long timerDelay = 5000; // Send readings every 5 seconds
@@ -30,17 +35,50 @@ unsigned long timerDelay = 5000; // Send readings every 5 seconds
 void setup() {
   Serial.begin(115200);
   
+  Serial.println("\nESP32 with DHT11 sensor starting up...");
+  
+  // Initialize SPIFFS
+  if (!SPIFFS.begin(true)) {
+    Serial.println("Failed to mount SPIFFS");
+    Serial.println("Using default WiFi and server settings");
+  } else {
+    Serial.println("SPIFFS mounted successfully");
+  }
+  
+  // Initialize configuration
+  if (!config.begin()) {
+    Serial.println("Failed to initialize configuration");
+    Serial.println("Using default WiFi and server settings");
+  }
+  
+  // Load configuration
+  if (!config.load()) {
+    Serial.println("No configuration file found or error loading file");
+    Serial.println("Creating default configuration file");
+    config.createDefaultConfig();
+    Serial.println("Using default WiFi and server settings");
+    Serial.println("Please upload the EnvConfigManager sketch to configure your settings");
+  } else {
+    Serial.println("Configuration loaded successfully");
+  }
+  
   // Initialize DHT sensor
   dht.begin();
   
   // Connect to WiFi
-  WiFi.begin(ssid, password);
+  const char* ssid = config.getSSID();
+  const char* password = config.getPassword();
+  
   Serial.println("Connecting to WiFi");
+  Serial.print("SSID: ");
+  Serial.println(ssid);
+  
+  WiFi.begin(ssid, password);
   
   while (WiFi.status() != WL_CONNECTED) {
     if(WiFi.status() == WL_CONNECT_FAILED)
     {
-      Serial.print("Not connected, leaving.");
+      Serial.println("Not connected, leaving.");
       return;
     }
     delay(500);
@@ -57,6 +95,8 @@ void setup() {
 
 void testServerConnection() {
   Serial.println("\n--- Testing Server Connection ---");
+  const char* serverUrl = config.getServerUrl();
+  
   Serial.print("Attempting to connect to: ");
   Serial.println(serverUrl);
   
@@ -118,6 +158,7 @@ void sendTemperatureData(float temperature) {
   HTTPClient http;
   
   // Your Domain name with URL path or IP address with path
+  const char* serverUrl = config.getServerUrl();
   http.begin(serverUrl);
   
   // Specify content-type header

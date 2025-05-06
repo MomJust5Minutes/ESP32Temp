@@ -5,6 +5,29 @@ import { dirname, join } from "path"
 import cors from "cors"
 import { WebSocketServer } from "ws"
 import { WebSocket } from "ws"
+import fs from "fs"
+import os from "os"
+import dotenv from "dotenv"
+
+// Load environment variables from .env file
+dotenv.config()
+
+// Get network interfaces to display server IP addresses
+const getNetworkAddresses = () => {
+  const interfaces = os.networkInterfaces()
+  const addresses = []
+  
+  for (const iface in interfaces) {
+    for (const details of interfaces[iface]) {
+      // Skip over non-IPv4 and internal (loopback) addresses
+      if (details.family === 'IPv4' && !details.internal) {
+        addresses.push(details.address)
+      }
+    }
+  }
+  
+  return addresses
+}
 
 // Get the directory name
 const __filename = fileURLToPath(import.meta.url)
@@ -228,9 +251,21 @@ app.use((err, req, res, next) => {
 
 // Start server
 const PORT = process.env.PORT || 3001
-server.listen(PORT, "0.0.0.0", () => {
+const HOST = process.env.HOST || "0.0.0.0"
+server.listen(PORT, HOST, () => {
+  const networkAddresses = getNetworkAddresses()
   console.log(`Server running on port ${PORT}`)
-  console.log(`Server accessible at http://192.168.15.91:${PORT}`)
-  console.log(`WebSocket available at ws://192.168.15.91:${PORT}/ws`)
+  
+  if (networkAddresses.length > 0) {
+    console.log("Server accessible at:")
+    networkAddresses.forEach(ip => {
+      console.log(`  http://${ip}:${PORT}`)
+      console.log(`  WebSocket available at ws://${ip}:${PORT}/ws`)
+    })
+  } else {
+    console.log(`Server accessible at http://localhost:${PORT}`)
+    console.log(`WebSocket available at ws://localhost:${PORT}/ws`)
+  }
+  
   console.log(`Server started at: ${new Date().toISOString()}`)
 })
