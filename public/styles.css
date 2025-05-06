@@ -4,10 +4,6 @@
   --red: #FF3800;
   --yellow: #FFFF00;
   --cyan: #00FFFF;
-  --violet: #EE82EE;
-  --bright-green: #00FF00;
-  --deep-blue: #161179;
-  --coral: #BE5B50;
   --peach: #FBDB93;
   --text-light: #ffffff;
   --text-dark: #333333;
@@ -32,9 +28,15 @@
 
 @font-face {
   font-family: 'Arcane Nine';
-  src: url('https://fonts.cdnfonts.com/css/arcane-nine') format('woff2');
+  src: url('https://fonts.cdnfonts.com/s/77878/ArcaneNine.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
+  font-display: swap;
+}
+
+html {
+  overflow: hidden;
+  height: 100%;
 }
 
 body {
@@ -50,22 +52,34 @@ body {
   overflow-x: hidden;
 }
 
-html {
-  overflow: hidden;
-  height: 100%;
-}
-
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 header {
   margin-bottom: 2rem;
   text-align: center;
-  border-bottom: 4px solid var(--yellow);
   padding-bottom: 1.5rem;
+  width: 100%;
+  position: relative;
+}
+
+header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 4rem);
+  max-width: 800px;
+  height: 4px;
+  background-color: var(--yellow);
 }
 
 h1 {
@@ -82,6 +96,7 @@ main {
   display: grid;
   grid-template-columns: 1fr 2fr;
   gap: 2rem;
+  width: 100%;
 }
 
 .current-readings {
@@ -106,10 +121,6 @@ main {
   main {
     grid-template-columns: 1fr;
   }
-  
-  .readings-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 @media (max-width: 640px) {
@@ -120,7 +131,6 @@ main {
 
 .card {
   background-color: var(--card-background);
-  border-radius: 0px;
   border: 3px solid var(--yellow);
   box-shadow: 6px 6px 0px var(--red);
   padding: 1.5rem;
@@ -150,31 +160,28 @@ h2 {
   margin: 1rem 0;
 }
 
-#current-temp {
-  font-size: 3.5rem;
-  font-weight: bold;
-  color: var(--text-light);
-  text-shadow: 2px 2px 0px var(--red);
-}
-
-#current-humidity {
-  font-size: 3.5rem;
-  font-weight: bold;
-  color: var(--text-light);
-  text-shadow: 2px 2px 0px var(--cyan);
-}
-
-#current-pressure {
-  font-size: 3.5rem;
-  font-weight: bold;
-  color: var(--text-light);
-  text-shadow: 2px 2px 0px var(--peach);
-}
-
+#current-temp,
+#current-humidity,
+#current-pressure,
 #current-altitude {
   font-size: 3.5rem;
   font-weight: bold;
   color: var(--text-light);
+}
+
+#current-temp {
+  text-shadow: 2px 2px 0px var(--red);
+}
+
+#current-humidity {
+  text-shadow: 2px 2px 0px var(--cyan);
+}
+
+#current-pressure {
+  text-shadow: 2px 2px 0px var(--peach);
+}
+
+#current-altitude {
   text-shadow: 2px 2px 0px var(--red);
 }
 
@@ -190,7 +197,6 @@ h2 {
   margin: 1rem 0;
   padding: 1rem;
   background-color: var(--red);
-  border-radius: 0px;
   color: var(--text-light);
   border: 2px solid var(--yellow);
 }
@@ -201,7 +207,6 @@ h2 {
   background-color: var(--yellow);
   color: var(--text-dark);
   border: none;
-  border-radius: 0;
   cursor: pointer;
   transition: background-color 0.3s;
   font-family: 'Arcane Nine', sans-serif;
@@ -234,6 +239,18 @@ footer {
   text-align: center;
   font-size: 1rem;
   color: var(--yellow);
-  border-top: 3px solid var(--yellow);
   padding-top: 1rem;
+  position: relative;
+}
+
+footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 4rem);
+  max-width: 800px;
+  height: 3px;
+  background-color: var(--yellow);
 }
