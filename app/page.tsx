@@ -173,11 +173,11 @@ export default function Home() {
   }, [checkESP32Status])
 
   return (
-    <main className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-8">Monitor de Temperatura ESP32</h1>
+    <main className="container mx-auto py-1 px-2 max-w-5xl min-h-[100vh] h-[100vh] flex flex-col">
+      <h1 className="text-lg font-bold mb-1 sm:text-xl">Monitor de Temperatura ESP32</h1>
       
-      <div className="text-sm mb-4 flex items-center gap-2">
-        <div className="flex items-center gap-2">
+      <div className="text-xs mb-1 flex items-center gap-1">
+        <div className="flex items-center gap-1">
           Status: 
           <span className={
             connectionStatus === 'ESP32 Conectado' ? 'text-green-500 font-medium' : 
@@ -188,58 +188,65 @@ export default function Home() {
           </span>
         </div>
         {lastUpdate && (
-          <span className="text-gray-500">
-            • Última atualização: {lastUpdate.toLocaleTimeString()}
+          <span className="text-gray-500 text-xs">
+            • {lastUpdate.toLocaleTimeString()}
           </span>
         )}
       </div>
       
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Temperatura Atual</CardTitle>
+      <div className="grid gap-2 md:grid-cols-2 flex-1 pb-1">
+        <Card className="shadow-sm flex flex-col overflow-hidden h-full">
+          <CardHeader className="py-1 px-3 sm:py-2">
+            <CardTitle className="text-sm sm:text-base">Temperatura Atual</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">
+          <CardContent className="py-1 px-3 flex-grow flex items-center justify-center">
+            <div className="text-2xl font-bold sm:text-3xl">
               {currentTemp !== null ? `${currentTemp.toFixed(1)}°C` : 'Aguardando...'}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Histórico de Temperatura</CardTitle>
+        <Card className="shadow-sm flex flex-col overflow-hidden h-full">
+          <CardHeader className="py-1 px-3 sm:py-2">
+            <CardTitle className="text-sm sm:text-base">Histórico de Temperatura</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
+          <CardContent className="p-0 flex-grow flex items-center justify-center">
+            <div className="w-full h-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart 
                   data={temperatureData}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  margin={{ top: 2, right: 10, left: 0, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.4} />
                   <XAxis 
                     dataKey="timestamp" 
                     tickFormatter={(value: number) => new Date(value).toLocaleTimeString()}
                     type="number"
                     domain={['dataMin', 'dataMax']}
+                    tick={{fontSize: 9}}
+                    height={15}
+                    scale="time"
                   />
                   <YAxis 
                     domain={['auto', 'auto']}
+                    tick={{fontSize: 9}}
+                    width={20}
                   />
                   <Tooltip 
                     labelFormatter={(value: number) => new Date(value).toLocaleTimeString()}
                     formatter={(value: number) => [`${value.toFixed(1)}°C`, 'Temperatura']}
+                    contentStyle={{fontSize: '11px'}}
                   />
                   <Line 
                     type="monotone" 
                     dataKey="temperature" 
                     stroke="#8884d8"
                     dot={false}
-                    activeDot={{ r: 6, fill: "#8884d8", stroke: "white", strokeWidth: 2 }}
+                    activeDot={{ r: 3.5, fill: "#8884d8", stroke: "white", strokeWidth: 1 }}
                     isAnimationActive={true}
                     animationDuration={500}
                     animationEasing="ease-in-out"
+                    strokeWidth={1.2}
                   />
                 </LineChart>
               </ResponsiveContainer>

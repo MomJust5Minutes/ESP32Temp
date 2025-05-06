@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: 'Monitor de Temperatura ESP32',
   description: 'Monitoramento de temperatura em tempo real com ESP32',
   generator: 'v0.dev',
+  viewport: 'width=device-width, initial-scale=0.9',
 }
 
 export default function RootLayout({
@@ -18,7 +19,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className={inter.className}>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=0.9" />
+      </head>
+      <body className={`${inter.className} scale-90`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

@@ -23,14 +23,14 @@ document.addEventListener("DOMContentLoaded", () => {
         {
           label: "Temperature (°C)",
           data: [],
-          backgroundColor: "rgba(59, 130, 246, 0.5)",
-          borderColor: "rgba(59, 130, 246, 1)",
-          borderWidth: 2,
+          backgroundColor: "rgba(255, 225, 53, 0.7)",
+          borderColor: "rgba(255, 255, 0, 1)",
+          borderWidth: 4,
           tension: 0.4,
-          pointRadius: 4,
-          pointBackgroundColor: "#ffffff",
-          pointBorderColor: "rgba(59, 130, 246, 1)",
-          pointBorderWidth: 2,
+          pointRadius: 6,
+          pointBackgroundColor: "#FF3800",
+          pointBorderColor: "#FFFF00",
+          pointBorderWidth: 3,
           fill: true,
         },
       ],
@@ -42,10 +42,12 @@ document.addEventListener("DOMContentLoaded", () => {
         x: {
           grid: {
             display: false,
+            color: "#FF3800"
           },
           ticks: {
             maxRotation: 0,
             maxTicksLimit: 8,
+            color: "#FFFF00"
           },
         },
         y: {
@@ -54,23 +56,40 @@ document.addEventListener("DOMContentLoaded", () => {
           suggestedMax: 40,
           ticks: {
             stepSize: 5,
+            color: "#FFFF00"
           },
+          grid: {
+            color: "rgba(255, 255, 0, 0.3)"
+          }
         },
       },
       plugins: {
         legend: {
           display: false,
+          labels: {
+            color: "#FFFF00",
+            font: {
+              family: "'Arcane Nine', sans-serif",
+              size: 14
+            }
+          }
         },
         tooltip: {
-          backgroundColor: "rgba(255, 255, 255, 0.9)",
-          titleColor: "#1e293b",
-          bodyColor: "#1e293b",
-          borderColor: "#e2e8f0",
-          borderWidth: 1,
+          backgroundColor: "#912147",
+          titleColor: "#FFFF00",
+          bodyColor: "#ffffff",
+          borderColor: "#FFFF00",
+          borderWidth: 2,
           displayColors: false,
           callbacks: {
             label: (context) => `${context.parsed.y}°C`,
           },
+          titleFont: {
+            family: "'Arcane Nine', sans-serif"
+          },
+          bodyFont: {
+            family: "'Arcane Nine', sans-serif"
+          }
         },
       },
       interaction: {
@@ -93,13 +112,13 @@ document.addEventListener("DOMContentLoaded", () => {
         {
           label: "Temperature (°C)",
           data: [],
-          backgroundColor: "rgba(59, 130, 246, 0.1)",
-          borderColor: "rgba(59, 130, 246, 1)",
-          borderWidth: 2,
+          backgroundColor: "rgba(255, 255, 0, 0.2)",
+          borderColor: "#FFFF00",
+          borderWidth: 4,
           tension: 0.4,
-          pointRadius: 3,
-          pointBackgroundColor: "#ffffff",
-          pointBorderColor: "rgba(59, 130, 246, 1)",
+          pointRadius: 5,
+          pointBackgroundColor: "#FF3800",
+          pointBorderColor: "#FFFF00",
           pointBorderWidth: 2,
           fill: false,
           yAxisID: 'y'
@@ -107,13 +126,13 @@ document.addEventListener("DOMContentLoaded", () => {
         {
           label: "Humidity (%)",
           data: [],
-          backgroundColor: "rgba(6, 182, 212, 0.1)",
-          borderColor: "rgb(6, 182, 212)",
-          borderWidth: 2,
+          backgroundColor: "rgba(0, 255, 255, 0.2)",
+          borderColor: "#00FFFF",
+          borderWidth: 4,
           tension: 0.4,
-          pointRadius: 3,
-          pointBackgroundColor: "#ffffff",
-          pointBorderColor: "rgb(6, 182, 212)",
+          pointRadius: 5,
+          pointBackgroundColor: "#501028",
+          pointBorderColor: "#00FFFF",
           pointBorderWidth: 2,
           fill: false,
           yAxisID: 'y'
@@ -121,13 +140,13 @@ document.addEventListener("DOMContentLoaded", () => {
         {
           label: "Pressure (hPa)",
           data: [],
-          backgroundColor: "rgba(139, 92, 246, 0.1)",
-          borderColor: "rgb(139, 92, 246)",
-          borderWidth: 2,
+          backgroundColor: "rgba(255, 56, 0, 0.2)",
+          borderColor: "#FF3800",
+          borderWidth: 4,
           tension: 0.4,
-          pointRadius: 3,
-          pointBackgroundColor: "#ffffff",
-          pointBorderColor: "rgb(139, 92, 246)",
+          pointRadius: 5,
+          pointBackgroundColor: "#501028",
+          pointBorderColor: "#FF3800",
           pointBorderWidth: 2,
           fill: false,
           yAxisID: 'y1'
@@ -135,13 +154,13 @@ document.addEventListener("DOMContentLoaded", () => {
         {
           label: "Altitude (m)",
           data: [],
-          backgroundColor: "rgba(245, 158, 11, 0.1)",
-          borderColor: "rgb(245, 158, 11)",
-          borderWidth: 2,
+          backgroundColor: "rgba(238, 130, 238, 0.2)",
+          borderColor: "#EE82EE",
+          borderWidth: 4,
           tension: 0.4,
-          pointRadius: 3,
-          pointBackgroundColor: "#ffffff",
-          pointBorderColor: "rgb(245, 158, 11)",
+          pointRadius: 5,
+          pointBackgroundColor: "#501028",
+          pointBorderColor: "#EE82EE",
           pointBorderWidth: 2,
           fill: false,
           yAxisID: 'y2'
@@ -155,10 +174,12 @@ document.addEventListener("DOMContentLoaded", () => {
         x: {
           grid: {
             display: false,
+            color: "#FF3800"
           },
           ticks: {
             maxRotation: 0,
             maxTicksLimit: 8,
+            color: "#FFFF00"
           },
         },
         y: {
@@ -167,11 +188,19 @@ document.addEventListener("DOMContentLoaded", () => {
           position: 'left',
           title: {
             display: true,
-            text: 'Temperature (°C) / Humidity (%)'
+            text: 'Temperature (°C) / Humidity (%)',
+            color: "#FFFF00",
+            font: {
+              family: "'Arcane Nine', sans-serif"
+            }
           },
           grid: {
             display: true,
+            color: "rgba(255, 255, 0, 0.3)"
           },
+          ticks: {
+            color: "#FFFF00"
+          }
         },
         y1: {
           type: 'linear',
@@ -179,11 +208,18 @@ document.addEventListener("DOMContentLoaded", () => {
           position: 'right',
           title: {
             display: true,
-            text: 'Pressure (hPa)'
+            text: 'Pressure (hPa)',
+            color: "#FF3800",
+            font: {
+              family: "'Arcane Nine', sans-serif"
+            }
           },
           grid: {
             display: false,
           },
+          ticks: {
+            color: "#FF3800"
+          }
         },
         y2: {
           type: 'linear',
@@ -191,10 +227,17 @@ document.addEventListener("DOMContentLoaded", () => {
           position: 'right',
           title: {
             display: true,
-            text: 'Altitude (m)'
+            text: 'Altitude (m)',
+            color: "#EE82EE",
+            font: {
+              family: "'Arcane Nine', sans-serif"
+            }
           },
           grid: {
             display: false,
+          },
+          ticks: {
+            color: "#EE82EE"
           }
         }
       },
@@ -202,13 +245,26 @@ document.addEventListener("DOMContentLoaded", () => {
         legend: {
           display: true,
           position: 'top',
+          labels: {
+            color: "#FFFF00",
+            font: {
+              family: "'Arcane Nine', sans-serif",
+              size: 12
+            }
+          }
         },
         tooltip: {
-          backgroundColor: "rgba(255, 255, 255, 0.9)",
-          titleColor: "#1e293b",
-          bodyColor: "#1e293b",
-          borderColor: "#e2e8f0",
-          borderWidth: 1,
+          backgroundColor: "#912147",
+          titleColor: "#FFFF00",
+          bodyColor: "#ffffff",
+          borderColor: "#FFFF00",
+          borderWidth: 2,
+          titleFont: {
+            family: "'Arcane Nine', sans-serif"
+          },
+          bodyFont: {
+            family: "'Arcane Nine', sans-serif"
+          }
         },
       },
       interaction: {
