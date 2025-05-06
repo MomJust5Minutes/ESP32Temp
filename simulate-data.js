@@ -1,8 +1,16 @@
 // Simulador de dados de sensores BME280 com diferentes padrões
 import fetch from "node-fetch"
 
-// Use the correct API endpoint
+// ==========================================
+// CONFIGURAÇÃO DO SERVIDOR - ALTERE AQUI
+// ==========================================
+
+// URL do servidor (altere para o endereço do seu servidor)
 const SERVER_URL = "http://localhost:3001/api/temperature"
+
+// ==========================================
+// FIM DA CONFIGURAÇÃO DO SERVIDOR
+// ==========================================
 
 // Base values for different sensors
 const BASE_TEMP = 25      // Temperatura base (°C)

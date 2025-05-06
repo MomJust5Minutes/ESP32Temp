@@ -4,12 +4,20 @@
 #include <Wire.h>
 #include <Adafruit_BME280.h>
 
-// WiFi credentials
-const char* ssid = "OvniNetwork";
-const char* password = "et@galaxia";
+// ==========================================
+// CONFIGURAÇÕES DO USUÁRIO - ALTERE AQUI
+// ==========================================
 
-// Server details
-const char* serverUrl = "http://192.168.15.91:3001/api/temperature";
+// WiFi credentials - ALTERE PARA SUA REDE
+const char* ssid = "COLOQUE_SEU_SSID_AQUI";
+const char* password = "COLOQUE_SUA_SENHA_AQUI";
+
+// Server details - ALTERE PARA O IP DO SEU SERVIDOR
+const char* serverUrl = "http://SEU_IP_SERVIDOR:3001/api/temperature";
+
+// ==========================================
+// FIM DAS CONFIGURAÇÕES DO USUÁRIO
+// ==========================================
 
 // BME280 sensor setup
 Adafruit_BME280 bme; // I2C interface
