@@ -5,8 +5,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const currentPressureElement = document.getElementById("current-pressure")
   const currentAltitudeElement = document.getElementById("current-altitude")
   const lastUpdatedElement = document.getElementById("last-updated")
-  const statusDot = document.querySelector(".status-dot")
-  const statusText = document.querySelector(".status-text")
   const noDataMessage = document.getElementById("no-data-message")
   const refreshButton = document.getElementById("refresh-data")
 
@@ -239,18 +237,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // WebSocket event handlers
   socket.onopen = () => {
     console.log("WebSocket connected to:", wsUrl);
-    updateConnectionStatus(true);
     socket.send(JSON.stringify({ type: "request-data" }));
   };
 
   socket.onclose = (event) => {
     console.log("WebSocket disconnected. Code:", event.code, "Reason:", event.reason);
-    updateConnectionStatus(false);
   };
 
   socket.onerror = (error) => {
     console.error("WebSocket error:", error);
-    updateConnectionStatus(false);
   };
 
   socket.onmessage = (event) => {
@@ -274,17 +269,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Update connection status
-  function updateConnectionStatus(connected) {
-    if (connected) {
-      statusDot.classList.add("connected")
-      statusText.textContent = "Connected"
-    } else {
-      statusDot.classList.remove("connected")
-      statusText.textContent = "Disconnected"
-    }
-  }
-
   // Update sensor readings display with error handling
   function updateSensorReadings(data) {
     try {
@@ -294,7 +278,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.warn("Invalid sensor data: null or undefined");
         return;
       }
-
+      
       // Temperature
       if (typeof data.temperature === "number" && !isNaN(data.temperature)) {
         currentTempElement.textContent = data.temperature.toFixed(1);
