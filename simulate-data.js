@@ -1,6 +1,7 @@
 // Simulador de dados de temperatura com diferentes padrões
 import fetch from "node-fetch"
 
+// Use the correct API endpoint
 const SERVER_URL = "http://localhost:3001/api/temperature"
 const BASE_TEMP = 25 // Temperatura base
 const VARIATION = 5 // Variação máxima

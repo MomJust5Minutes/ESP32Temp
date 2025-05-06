@@ -1,20 +1,17 @@
-import { Chart } from "@/components/ui/chart"
-import io from "socket.io-client" // Import socket.io-client
-
 document.addEventListener("DOMContentLoaded", () => {
-  // Connect to Socket.io server with explicit configuration
-  const socket = io({
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
-    timeout: 20000,
-  })
-
   // DOM elements
   const currentTempElement = document.getElementById("current-temp")
   const lastUpdatedElement = document.getElementById("last-updated")
   const statusDot = document.querySelector(".status-dot")
   const statusText = document.querySelector(".status-text")
+  const noDataMessage = document.getElementById("no-data-message")
+  const refreshButton = document.getElementById("refresh-data")
 
+  // Initialize WebSocket connection
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+  const socket = new WebSocket(wsUrl);
+  
   // Initialize Chart.js
   const ctx = document.getElementById("temperature-chart").getContext("2d")
   const temperatureChart = new Chart(ctx, {
@@ -85,10 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
     },
   })
 
-  // Add this to your JavaScript
-  const noDataMessage = document.getElementById("no-data-message")
-  const refreshButton = document.getElementById("refresh-data")
-
   // Show no-data message if no data received after 10 seconds
   setTimeout(() => {
     if (temperatureChart.data.datasets[0].data.length === 0) {
@@ -98,36 +91,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Refresh button handler
   refreshButton.addEventListener("click", () => {
-    socket.emit("request-data")
+    socket.send(JSON.stringify({ type: "request-data" }));
     noDataMessage.style.display = "none"
   })
 
-  // Debug connection status
-  socket.on("connect", () => {
-    console.log("Socket.io connected with ID:", socket.id)
-    updateConnectionStatus(true)
-    socket.emit("request-data")
-  })
+  // WebSocket event handlers
+  socket.onopen = () => {
+    console.log("WebSocket connected");
+    updateConnectionStatus(true);
+    socket.send(JSON.stringify({ type: "request-data" }));
+  };
 
-  socket.on("connect_error", (err) => {
-    console.error("Socket.io connection error:", err)
-    updateConnectionStatus(false)
-  })
+  socket.onclose = () => {
+    console.log("WebSocket disconnected");
+    updateConnectionStatus(false);
+  };
 
-  socket.on("disconnect", () => {
-    updateConnectionStatus(false)
-  })
+  socket.onerror = (error) => {
+    console.error("WebSocket error:", error);
+    updateConnectionStatus(false);
+  };
 
-  socket.on("temperature-update", (data) => {
-    console.log("Received temperature update:", data)
-    updateCurrentTemperature(data)
-    addDataPoint(data)
-  })
-
-  socket.on("temperature-history", (data) => {
-    console.log("Received temperature history:", data)
-    updateTemperatureHistory(data)
-  })
+  socket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      console.log("Received data:", data);
+      
+      if (data.type === "temperature-update") {
+        updateCurrentTemperature(data);
+        addDataPoint(data);
+      } else if (data.type === "temperature-history") {
+        updateTemperatureHistory(data.data);
+      }
+    } catch (error) {
+      console.error("Error processing message:", error);
+    }
+  };
 
   // Update connection status
   function updateConnectionStatus(connected) {

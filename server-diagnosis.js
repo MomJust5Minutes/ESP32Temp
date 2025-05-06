@@ -1,11 +1,19 @@
-const express = require("express")
-const app = express()
+import express from 'express';
 
-// Add this to your server.js file temporarily for debugging
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`)
-  if (req.method === "POST" && req.url === "/api/temperature") {
-    console.log("Temperature data received:", req.body)
-  }
-  next()
-})
+const app = express();
+app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.json({ message: 'Test server is running!' });
+});
+
+app.post('/', (req, res) => {
+  console.log('Received data:', req.body);
+  res.json({ success: true });
+});
+
+const PORT = 3001;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Test server running on port ${PORT}`);
+  console.log(`URL: http://localhost:${PORT}`);
+});

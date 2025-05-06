@@ -3,95 +3,103 @@
 #include <DHT.h>
 #include <ArduinoJson.h>
 
-// Configurações do WiFi
-const char* ssid = "SUA_REDE_WIFI";      // Substitua pelo nome da sua rede WiFi
-const char* password = "SUA_SENHA_WIFI";  // Substitua pela senha da sua rede WiFi
+// WiFi credentials
+const char* ssid = "OvniNetwork";
+const char* password = "et@galaxia";
 
-// Configurações do servidor
-const char* serverUrl = "http://172.20.10.11:3001/api/temperature";  // IP do seu computador na rede local
+// Server details
+const char* serverUrl = "http://192.168.15.91:3001/api/temperature";// DHT sensor setup
 
-// Configuração do sensor DHT11
-#define DHTPIN 4       // Pino digital conectado ao DHT11
-#define DHTTYPE DHT11  // Tipo do sensor (DHT11)
+#define DHTPIN 5      // Digital pin connected to the DHT sensor
+#define DHTTYPE DHT11 // DHT 11
 DHT dht(DHTPIN, DHTTYPE);
 
-// Variáveis de tempo
+// Timing variables
 unsigned long lastTime = 0;
-unsigned long timerDelay = 5000;  // Intervalo de 5 segundos entre as leituras
+unsigned long timerDelay = 5000; // Send readings every 5 seconds
 
 void setup() {
   Serial.begin(115200);
-  delay(1000); // Aguarda a inicialização da serial
   
   // Initialize DHT sensor
   dht.begin();
-  Serial.println("Sensor DHT11 iniciado!");
   
-  // Conecta ao WiFi
-  WiFi.mode(WIFI_STA); // Configura explicitamente como station mode
+  // Connect to WiFi
   WiFi.begin(ssid, password);
-  Serial.println("\nConectando ao WiFi...");
+  Serial.println("Connecting to WiFi");
   
-  int tentativas = 0;
-  while (WiFi.status() != WL_CONNECTED && tentativas < 20) { // Timeout após 20 tentativas
+  while (WiFi.status() != WL_CONNECTED) {
+    if(WiFi.status() == WL_CONNECT_FAILED)
+    {
+      Serial.print("Not connected, leaving.");
+      return;
+    }
     delay(500);
     Serial.print(".");
-    tentativas++;
-    
-    // A cada 5 tentativas, mostra o status
-    if (tentativas % 5 == 0) {
-      Serial.println();
-      Serial.print("Status WiFi: ");
-      switch(WiFi.status()) {
-        case WL_NO_SHIELD: Serial.println("Nenhum shield WiFi encontrado"); break;
-        case WL_IDLE_STATUS: Serial.println("Idle"); break;
-        case WL_NO_SSID_AVAIL: Serial.println("SSID não encontrado"); break;
-        case WL_SCAN_COMPLETED: Serial.println("Scan completo"); break;
-        case WL_CONNECT_FAILED: Serial.println("Falha na conexão"); break;
-        case WL_CONNECTION_LOST: Serial.println("Conexão perdida"); break;
-        case WL_DISCONNECTED: Serial.println("Desconectado"); break;
-        default: Serial.println("Status desconhecido");
-      }
-    }
   }
   
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nConexão WiFi estabelecida!");
-    Serial.print("Endereço IP: ");
-    Serial.println(WiFi.localIP());
-    Serial.print("Força do sinal (RSSI): ");
-    Serial.print(WiFi.RSSI());
-    Serial.println(" dBm");
+  Serial.println("");
+  Serial.print("Connected to WiFi network with IP Address: ");
+  Serial.println(WiFi.localIP());
+
+  // Test server connection
+  testServerConnection();
+}
+
+void testServerConnection() {
+  Serial.println("\n--- Testing Server Connection ---");
+  Serial.print("Attempting to connect to: ");
+  Serial.println(serverUrl);
+  
+  HTTPClient http;
+  http.begin(serverUrl);
+  
+  // Set timeout to 10 seconds
+  http.setTimeout(10000);
+  
+  Serial.println("Sending GET request...");
+  int httpCode = http.GET();
+  
+  if (httpCode > 0) {
+    Serial.print("Connection successful! Response code: ");
+    Serial.println(httpCode);
+    String payload = http.getString();
+    Serial.println("Response:");
+    Serial.println(payload);
   } else {
-    Serial.println("\nFalha ao conectar ao WiFi!");
-    Serial.println("Reiniciando o ESP32...");
-    delay(2000);
-    ESP.restart();
+    Serial.print("Connection failed! Error: ");
+    Serial.println(http.errorToString(httpCode).c_str());
+    
+    // Additional debugging
+    Serial.print("ESP32 IP address: ");
+    Serial.println(WiFi.localIP());
+    Serial.print("ESP32 subnet mask: ");
+    Serial.println(WiFi.subnetMask());
+    Serial.print("ESP32 gateway: ");
+    Serial.println(WiFi.gatewayIP());
   }
+  
+  http.end();
+  Serial.println("--- End of Test ---\n");
 }
 
 void loop() {
-  // Verifica se é hora de fazer uma nova leitura
+  // Check if it's time to send a new reading
   if ((millis() - lastTime) > timerDelay) {
-    // Verifica a conexão WiFi
+    // Check WiFi connection status
     if (WiFi.status() == WL_CONNECTED) {
+      // Read temperature from DHT sensor
       float temperature = dht.readTemperature();
       
-      // Verifica se a leitura foi bem-sucedida
+      // Check if reading is valid
       if (isnan(temperature)) {
-        Serial.println("Falha ao ler o sensor DHT11!");
+        Serial.println("Failed to read from DHT sensor!");
       } else {
-        Serial.print("Temperatura: ");
-        Serial.print(temperature);
-        Serial.println("°C");
-        
-        // Envia os dados para o servidor
+        // Send temperature data to server
         sendTemperatureData(temperature);
       }
     } else {
-      Serial.println("WiFi Desconectado");
-      // Tenta reconectar
-      WiFi.reconnect();
+      Serial.println("WiFi Disconnected");
     }
     lastTime = millis();
   }
@@ -100,30 +108,29 @@ void loop() {
 void sendTemperatureData(float temperature) {
   HTTPClient http;
   
-  // Inicia a conexão com o servidor
+  // Your Domain name with URL path or IP address with path
   http.begin(serverUrl);
+  
+  // Specify content-type header
   http.addHeader("Content-Type", "application/json");
   
-  // Cria o JSON com os dados
+  // Create JSON document
   StaticJsonDocument<200> doc;
   doc["temperature"] = temperature;
+  doc["timestamp"] = millis();
   
+  // Serialize JSON to string
   String requestBody;
   serializeJson(doc, requestBody);
   
-  // Envia a requisição POST
+  // Send HTTP POST request
   int httpResponseCode = http.POST(requestBody);
   
-  if (httpResponseCode > 0) {
-    Serial.print("Resposta HTTP: ");
-    Serial.println(httpResponseCode);
-    String response = http.getString();
-    Serial.println(response);
-  } else {
-    Serial.print("Erro no envio: ");
-    Serial.println(httpResponseCode);
-  }
+  Serial.print("Temperature: ");
+  Serial.print(temperature);
+  Serial.print("°C - HTTP Response code: ");
+  Serial.println(httpResponseCode);
   
-  // Libera os recursos
+  // Free resources
   http.end();
 }

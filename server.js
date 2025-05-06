@@ -16,7 +16,15 @@ app.use(cors({
   origin: '*',
   methods: ['GET', 'POST']
 }))
-app.use(express.json())
+app.use(express.json({ limit: '1mb' })) // Add size limit to prevent large payload attacks
+
+// Serve static files from the public directory
+app.use(express.static(join(__dirname, 'public')))
+
+// Root route handler
+app.get('/', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'index.html'))
+})
 
 const server = createServer(app)
 const wss = new WebSocketServer({ 
@@ -55,93 +63,162 @@ app.get("/api/test", (req, res) => {
 
 // Route to receive temperature data from ESP32
 app.post("/api/temperature", (req, res) => {
-  const { temperature } = req.body
-  
-  if (temperature === undefined) {
-    return res.status(400).json({ error: "Temperature data is required" })
-  }
-
-  const reading = {
-    temperature: parseFloat(temperature),
-    timestamp: Date.now(),
-    type: "temperature-update"
-  }
-
-  temperatureReadings.push(reading)
-  if (temperatureReadings.length > MAX_READINGS) {
-    temperatureReadings.shift()
-  }
-
-  // Enviar para todos os clientes WebSocket conectados
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      try {
-        client.send(JSON.stringify(reading))
-      } catch (error) {
-        console.error("Erro ao enviar dados para cliente WebSocket:", error)
-      }
+  try {
+    const { temperature } = req.body
+    
+    if (temperature === undefined) {
+      return res.status(400).json({ error: "Temperature data is required" })
     }
-  })
+    
+    // Validate temperature data
+    const tempValue = parseFloat(temperature)
+    if (isNaN(tempValue)) {
+      return res.status(400).json({ error: "Temperature must be a valid number" })
+    }
+    
+    // Optional: Add reasonable range validation
+    if (tempValue < -50 || tempValue > 100) {
+      return res.status(400).json({ error: "Temperature out of reasonable range (-50°C to 100°C)" })
+    }
 
-  res.status(200).json({ success: true })
+    const reading = {
+      temperature: tempValue,
+      timestamp: Date.now(),
+      type: "temperature-update"
+    }
+
+    temperatureReadings.push(reading)
+    if (temperatureReadings.length > MAX_READINGS) {
+      temperatureReadings.shift()
+    }
+
+    // Send to all connected WebSocket clients
+    let clientCount = 0
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(JSON.stringify(reading))
+          clientCount++
+        } catch (error) {
+          console.error("Error sending data to WebSocket client:", error)
+        }
+      }
+    })
+    
+    console.log(`Temperature update sent to ${clientCount} connected clients`)
+    res.status(200).json({ success: true })
+  } catch (error) {
+    console.error("Error processing temperature data:", error)
+    res.status(500).json({ error: "Server error processing temperature data" })
+  }
 })
 
 // WebSocket connection handler
 wss.on("connection", (ws, req) => {
-  console.log("Novo cliente WebSocket conectado")
-  console.log("Endereço IP:", req.socket.remoteAddress)
+  const clientIp = req.socket.remoteAddress
+  console.log(`New WebSocket client connected from ${clientIp}`)
   
-  // Enviar histórico de leituras para o novo cliente
+  // Set a timeout for the socket
+  ws.setTimeout = setTimeout(() => {
+    if (ws.readyState === WebSocket.CONNECTING) {
+      console.log(`Client ${clientIp} connection timed out`)
+      ws.terminate()
+    }
+  }, 10000) // 10 second timeout
+  
+  // Clear timeout once connected
+  clearTimeout(ws.setTimeout)
+  
+  // Send reading history to new client
   try {
     ws.send(JSON.stringify({
       type: "temperature-history",
       data: temperatureReadings
     }))
   } catch (error) {
-    console.error("Erro ao enviar histórico para novo cliente:", error)
+    console.error("Error sending history to new client:", error)
   }
 
-  // Tratamento de erros do WebSocket
+  // WebSocket error handling
   ws.on("error", (error) => {
-    console.error("Erro no WebSocket:", error)
+    console.error(`WebSocket error from ${clientIp}:`, error)
   })
 
-  ws.on("close", () => {
-    console.log("Cliente WebSocket desconectado")
+  ws.on("close", (code, reason) => {
+    console.log(`Client ${clientIp} disconnected. Code: ${code}, Reason: ${reason || 'No reason provided'}`)
   })
 
-  // Ping/Pong para manter a conexão ativa
+  // Handle unexpected messages from clients
+  ws.on("message", (message) => {
+    try {
+      const data = JSON.parse(message)
+      console.log(`Received message from client ${clientIp}:`, data)
+    } catch (error) {
+      console.warn(`Received invalid JSON from client ${clientIp}`)
+    }
+  })
+
+  // Ping/Pong to keep connection active
   ws.isAlive = true
   ws.on("pong", () => {
     ws.isAlive = true
   })
 })
 
-// Verificação periódica de conexões ativas
-const interval = setInterval(() => {
+// Check for active connections periodically
+const pingInterval = setInterval(() => {
   wss.clients.forEach((ws) => {
     if (ws.isAlive === false) {
-      console.log("Removendo cliente inativo")
+      console.log("Terminating inactive client")
       return ws.terminate()
     }
     ws.isAlive = false
-    ws.ping()
+    ws.ping((err) => {
+      if (err) {
+        console.error("Error sending ping:", err)
+      }
+    })
   })
 }, 30000)
 
+// Properly clean up interval when server closes
 wss.on("close", () => {
-  clearInterval(interval)
+  clearInterval(pingInterval)
 })
+
+// Graceful shutdown handling
+process.on('SIGINT', () => {
+  console.log('Server shutting down...');
+  
+  // Close WebSocket server
+  wss.close(() => {
+    console.log('WebSocket server closed');
+    
+    // Close HTTP server
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
+  });
+  
+  // Force exit after 5 seconds if graceful shutdown fails
+  setTimeout(() => {
+    console.error('Forcing server shutdown after timeout');
+    process.exit(1);
+  }, 5000);
+});
 
 // Add error handling middleware
 app.use((err, req, res, next) => {
-  console.error("Erro no servidor:", err)
-  res.status(500).json({ error: "Erro interno do servidor" })
+  console.error("Server error:", err)
+  res.status(500).json({ error: "Internal server error" })
 })
 
 // Start server
-const PORT = 3001
+const PORT = process.env.PORT || 3001
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Servidor rodando na porta ${PORT}`)
-  console.log(`WebSocket disponível em ws://localhost:${PORT}/ws`)
+  console.log(`Server running on port ${PORT}`)
+  console.log(`Server accessible at http://192.168.15.91:${PORT}`)
+  console.log(`WebSocket available at ws://192.168.15.91:${PORT}/ws`)
+  console.log(`Server started at: ${new Date().toISOString()}`)
 })
