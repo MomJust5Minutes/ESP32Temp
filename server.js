@@ -230,7 +230,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3001
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`)
-  console.log(`Server accessible at http://192.168.15.91:${PORT}`)
-  console.log(`WebSocket available at ws://192.168.15.91:${PORT}/ws`)
+  console.log(`Server accessible at http://YOUR_SERVER_URL:${PORT}`)
+  console.log(`WebSocket available at ws://YOUR_SERVER_URL:${PORT}/ws`)
   console.log(`Server started at: ${new Date().toISOString()}`)
 })
