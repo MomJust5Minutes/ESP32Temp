@@ -9,6 +9,9 @@
   --error-color: #ef4444;
   --chart-color: rgba(59, 130, 246, 0.5);
   --chart-border: rgba(59, 130, 246, 1);
+  --humidity-color: rgb(6, 182, 212);
+  --pressure-color: rgb(139, 92, 246);
+  --altitude-color: rgb(245, 158, 11);
 }
 
 * {
@@ -60,15 +63,33 @@ h1 {
 }
 
 main {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
+  display: flex;
+  flex-direction: column;
   gap: 2rem;
 }
 
-@media (max-width: 768px) {
-  main {
+.readings-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .readings-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .readings-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.charts-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 .card {
@@ -79,40 +100,92 @@ main {
   height: 100%;
 }
 
+.sensor-card {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
 h2 {
   font-size: 1.2rem;
   margin-bottom: 1rem;
   color: var(--text-color);
 }
 
-.temperature-display {
+.sensor-display {
   display: flex;
   align-items: baseline;
   justify-content: center;
-  margin: 2rem 0;
+  margin: 1rem 0;
 }
 
 #current-temp {
-  font-size: 4rem;
+  font-size: 3rem;
   font-weight: bold;
   color: var(--primary-color);
 }
 
+#current-humidity {
+  font-size: 3rem;
+  font-weight: bold;
+  color: var(--humidity-color);
+}
+
+#current-pressure {
+  font-size: 3rem;
+  font-weight: bold;
+  color: var(--pressure-color);
+}
+
+#current-altitude {
+  font-size: 3rem;
+  font-weight: bold;
+  color: var(--altitude-color);
+}
+
 .unit {
-  font-size: 2rem;
+  font-size: 1.5rem;
   margin-left: 0.5rem;
   color: var(--secondary-color);
+}
+
+.no-data-message {
+  text-align: center;
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+  color: var(--error-color);
+}
+
+.refresh-button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.refresh-button:hover {
+  background-color: var(--secondary-color);
 }
 
 .last-updated {
   text-align: center;
   font-size: 0.9rem;
   color: #64748b;
+  margin-top: 1rem;
 }
 
 .chart-container {
   height: 300px;
   position: relative;
+  margin-top: 1rem;
 }
 
 footer {

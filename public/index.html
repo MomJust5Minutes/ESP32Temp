@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP32 Temperature Dashboard</title>
+  <title>ESP32 Environment Monitor Dashboard</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>ESP32 Temperature Dashboard</h1>
+      <h1>ESP32 Environment Monitor Dashboard</h1>
       <div class="status-indicator">
         <span class="status-dot"></span>
         <span class="status-text">Disconnected</span>
@@ -18,35 +18,70 @@
     </header>
     
     <main>
-      <section class="current-reading">
-        <div class="card">
-          <h2>Current Temperature</h2>
-          <div class="temperature-display">
-            <span id="current-temp">--</span>
-            <span class="unit">°C</span>
-            <div class="no-data-message" id="no-data-message" style="display: none;">
-              <p>No temperature data available</p>
-              <button id="refresh-data" class="refresh-button">Refresh</button>
+      <section class="current-readings">
+        <div class="readings-grid">
+          <div class="card sensor-card">
+            <h2>Temperature</h2>
+            <div class="sensor-display">
+              <span id="current-temp">--</span>
+              <span class="unit">°C</span>
             </div>
           </div>
-          <div class="last-updated">
-            Last updated: <span id="last-updated">Never</span>
+          
+          <div class="card sensor-card">
+            <h2>Humidity</h2>
+            <div class="sensor-display">
+              <span id="current-humidity">--</span>
+              <span class="unit">%</span>
+            </div>
           </div>
+          
+          <div class="card sensor-card">
+            <h2>Pressure</h2>
+            <div class="sensor-display">
+              <span id="current-pressure">--</span>
+              <span class="unit">hPa</span>
+            </div>
+          </div>
+          
+          <div class="card sensor-card">
+            <h2>Altitude</h2>
+            <div class="sensor-display">
+              <span id="current-altitude">--</span>
+              <span class="unit">m</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="no-data-message" id="no-data-message" style="display: none;">
+          <p>No sensor data available</p>
+          <button id="refresh-data" class="refresh-button">Refresh</button>
+        </div>
+        
+        <div class="last-updated">
+          Last updated: <span id="last-updated">Never</span>
         </div>
       </section>
       
-      <section class="temperature-history">
+      <section class="charts-section">
         <div class="card">
           <h2>Temperature History</h2>
           <div class="chart-container">
             <canvas id="temperature-chart"></canvas>
           </div>
         </div>
+        
+        <div class="card">
+          <h2>All Sensors History</h2>
+          <div class="chart-container">
+            <canvas id="all-sensors-chart"></canvas>
+          </div>
+        </div>
       </section>
     </main>
     
     <footer>
-      <p>ESP32 Temperature Monitor | DHT11 Sensor</p>
+      <p>ESP32 Environment Monitor | BME280 Sensor</p>
     </footer>
   </div>
 

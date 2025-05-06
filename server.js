@@ -33,8 +33,8 @@ const wss = new WebSocketServer({
   clientTracking: true
 })
 
-// Store temperature readings (last 20 readings)
-const temperatureReadings = []
+// Store sensor readings (last 20 readings)
+const sensorReadings = []
 const MAX_READINGS = 20
 
 // Add a middleware to log all requests
@@ -46,8 +46,8 @@ app.use((req, res, next) => {
 // Add a GET endpoint for testing connection
 app.get("/api/temperature", (req, res) => {
   res.status(200).json({
-    message: "Temperature API is working!",
-    readings: temperatureReadings,
+    message: "Sensor API is working!",
+    readings: sensorReadings,
     timestamp: Date.now(),
   })
 })
@@ -61,10 +61,10 @@ app.get("/api/test", (req, res) => {
   })
 })
 
-// Route to receive temperature data from ESP32
+// Route to receive sensor data from ESP32
 app.post("/api/temperature", (req, res) => {
   try {
-    const { temperature } = req.body
+    const { temperature, humidity, pressure, altitude } = req.body
     
     if (temperature === undefined) {
       return res.status(400).json({ error: "Temperature data is required" })
@@ -81,15 +81,19 @@ app.post("/api/temperature", (req, res) => {
       return res.status(400).json({ error: "Temperature out of reasonable range (-50°C to 100°C)" })
     }
 
+    // Create reading object with all sensor values
     const reading = {
       temperature: tempValue,
+      humidity: parseFloat(humidity) || null,
+      pressure: parseFloat(pressure) || null,
+      altitude: parseFloat(altitude) || null,
       timestamp: Date.now(),
-      type: "temperature-update"
+      type: "sensor-update"
     }
 
-    temperatureReadings.push(reading)
-    if (temperatureReadings.length > MAX_READINGS) {
-      temperatureReadings.shift()
+    sensorReadings.push(reading)
+    if (sensorReadings.length > MAX_READINGS) {
+      sensorReadings.shift()
     }
 
     // Send to all connected WebSocket clients
@@ -105,11 +109,11 @@ app.post("/api/temperature", (req, res) => {
       }
     })
     
-    console.log(`Temperature update sent to ${clientCount} connected clients`)
+    console.log(`Sensor update sent to ${clientCount} connected clients`)
     res.status(200).json({ success: true })
   } catch (error) {
-    console.error("Error processing temperature data:", error)
-    res.status(500).json({ error: "Server error processing temperature data" })
+    console.error("Error processing sensor data:", error)
+    res.status(500).json({ error: "Server error processing sensor data" })
   }
 })
 
@@ -132,8 +136,8 @@ wss.on("connection", (ws, req) => {
   // Send reading history to new client
   try {
     ws.send(JSON.stringify({
-      type: "temperature-history",
-      data: temperatureReadings
+      type: "sensor-history",
+      data: sensorReadings
     }))
   } catch (error) {
     console.error("Error sending history to new client:", error)
@@ -148,11 +152,19 @@ wss.on("connection", (ws, req) => {
     console.log(`Client ${clientIp} disconnected. Code: ${code}, Reason: ${reason || 'No reason provided'}`)
   })
 
-  // Handle unexpected messages from clients
+  // Handle messages from clients, including data requests
   ws.on("message", (message) => {
     try {
       const data = JSON.parse(message)
       console.log(`Received message from client ${clientIp}:`, data)
+      
+      // Handle request for sensor data
+      if (data.type === "request-data") {
+        ws.send(JSON.stringify({
+          type: "sensor-history",
+          data: sensorReadings
+        }))
+      }
     } catch (error) {
       console.warn(`Received invalid JSON from client ${clientIp}`)
     }
