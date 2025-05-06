@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
           borderWidth: 4,
           tension: 0.4,
           pointRadius: 6,
-          pointBackgroundColor: "#FF3800",
+          pointBackgroundColor: "#000000",
           pointBorderColor: "#FFFF00",
           pointBorderWidth: 3,
           fill: true,
@@ -117,7 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
           borderWidth: 4,
           tension: 0.4,
           pointRadius: 5,
-          pointBackgroundColor: "#FF3800",
+          pointBackgroundColor: "#000000",
           pointBorderColor: "#FFFF00",
           pointBorderWidth: 2,
           fill: false,
@@ -140,13 +140,13 @@ document.addEventListener("DOMContentLoaded", () => {
         {
           label: "Pressure (hPa)",
           data: [],
-          backgroundColor: "rgba(255, 56, 0, 0.2)",
-          borderColor: "#FF3800",
+          backgroundColor: "rgba(251, 219, 147, 0.2)",
+          borderColor: "#FBDB93",
           borderWidth: 4,
           tension: 0.4,
           pointRadius: 5,
           pointBackgroundColor: "#501028",
-          pointBorderColor: "#FF3800",
+          pointBorderColor: "#FBDB93",
           pointBorderWidth: 2,
           fill: false,
           yAxisID: 'y1'
@@ -209,7 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
           title: {
             display: true,
             text: 'Pressure (hPa)',
-            color: "#FF3800",
+            color: "#FBDB93",
             font: {
               family: "'Arcane Nine', sans-serif"
             }
@@ -218,7 +218,7 @@ document.addEventListener("DOMContentLoaded", () => {
             display: false,
           },
           ticks: {
-            color: "#FF3800"
+            color: "#FBDB93"
           }
         },
         y2: {

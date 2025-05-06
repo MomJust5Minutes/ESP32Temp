@@ -5,6 +5,10 @@
   --yellow: #FFFF00;
   --cyan: #00FFFF;
   --violet: #EE82EE;
+  --bright-green: #00FF00;
+  --deep-blue: #161179;
+  --coral: #BE5B50;
+  --peach: #FBDB93;
   --text-light: #ffffff;
   --text-dark: #333333;
   --background-color: var(--dark-burgundy);
@@ -16,8 +20,8 @@
   --chart-color: var(--yellow);
   --chart-border: var(--yellow);
   --humidity-color: var(--cyan);
-  --pressure-color: var(--red);
-  --altitude-color: var(--violet);
+  --pressure-color: var(--peach);
+  --altitude-color: var(--red);
 }
 
 * {
@@ -164,14 +168,14 @@ h2 {
   font-size: 3.5rem;
   font-weight: bold;
   color: var(--text-light);
-  text-shadow: 2px 2px 0px var(--red);
+  text-shadow: 2px 2px 0px var(--peach);
 }
 
 #current-altitude {
   font-size: 3.5rem;
   font-weight: bold;
   color: var(--text-light);
-  text-shadow: 2px 2px 0px var(--violet);
+  text-shadow: 2px 2px 0px var(--red);
 }
 
 .unit {
