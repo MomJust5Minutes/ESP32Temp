@@ -16,6 +16,9 @@ const char* password = "COLOQUE_SUA_SENHA_AQUI";
 // Server details - ALTERE PARA O IP DO SEU SERVIDOR
 const char* serverUrl = "http://SEU_IP_SERVIDOR:3000/api/temperature";
 
+// Temperatura limite para ativar o ventilador automaticamente (em Celsius)
+const float FAN_TEMPERATURE_THRESHOLD = 25.0;
+
 // ==========================================
 // FIM DAS CONFIGURAÇÕES DO USUÁRIO
 // ==========================================
@@ -23,6 +26,7 @@ const char* serverUrl = "http://SEU_IP_SERVIDOR:3000/api/temperature";
 // Definição do pino do ventilador
 const int FAN_PIN = 5;
 bool fanState = false;
+bool autoFanControl = true; // Controle automático ativado por padrão
 
 // Servidor HTTP local
 WebServer server(80);
@@ -110,8 +114,13 @@ void handleFanControl() {
         if (command == "on") {
           newFanState = true;
           validCommand = true;
+          autoFanControl = false; // Desativa o controle automático ao usar controle manual
         } else if (command == "off") {
           newFanState = false;
+          validCommand = true;
+          autoFanControl = false; // Desativa o controle automático ao usar controle manual
+        } else if (command == "auto") {
+          autoFanControl = true; // Reativa o controle automático
           validCommand = true;
         }
       }
@@ -119,13 +128,16 @@ void handleFanControl() {
   }
   
   if (validCommand) {
-    // Atualizar o estado do ventilador
-    fanState = newFanState;
-    digitalWrite(FAN_PIN, fanState ? HIGH : LOW);
+    if (!autoFanControl) {
+      // Atualizar o estado do ventilador manualmente
+      fanState = newFanState;
+      digitalWrite(FAN_PIN, fanState ? HIGH : LOW);
+    }
     
     StaticJsonDocument<100> response;
     response["success"] = true;
     response["fan_state"] = fanState ? "on" : "off";
+    response["auto_control"] = autoFanControl;
     
     String responseJson;
     serializeJson(response, responseJson);
@@ -133,9 +145,11 @@ void handleFanControl() {
     server.send(200, "application/json", responseJson);
     Serial.print("Ventilador ");
     Serial.println(fanState ? "LIGADO" : "DESLIGADO");
+    Serial.print("Controle automático: ");
+    Serial.println(autoFanControl ? "ATIVADO" : "DESATIVADO");
   } else {
     // Comando inválido
-    server.send(400, "application/json", "{\"error\":\"Comando inválido. Use {\\\"value\\\":\\\"on\\\"} ou {\\\"value\\\":\\\"off\\\"}\"}");
+    server.send(400, "application/json", "{\"error\":\"Comando inválido. Use {\\\"value\\\":\\\"on\\\"}, {\\\"value\\\":\\\"off\\\"} ou {\\\"value\\\":\\\"auto\\\"}\"}");
   }
 }
 
@@ -143,6 +157,7 @@ void handleFanControl() {
 void getFanStatus() {
   StaticJsonDocument<100> response;
   response["fan_state"] = fanState ? "on" : "off";
+  response["auto_control"] = autoFanControl;
   
   String responseJson;
   serializeJson(response, responseJson);
@@ -223,6 +238,33 @@ void readBME280Data(float &temperature, float &humidity, float &pressure, float 
   }
 }
 
+// Função para controle automático do ventilador baseado na temperatura
+void checkTemperatureAndControlFan(float temperature) {
+  if (!autoFanControl) {
+    return; // Não fazer nada se o controle automático estiver desativado
+  }
+  
+  if (temperature > FAN_TEMPERATURE_THRESHOLD) {
+    // Ativar o ventilador se temperatura acima do limite
+    if (!fanState) {
+      fanState = true;
+      digitalWrite(FAN_PIN, HIGH);
+      Serial.print("Ventilador LIGADO automaticamente - Temperatura: ");
+      Serial.print(temperature);
+      Serial.println("°C");
+    }
+  } else {
+    // Desativar o ventilador se temperatura abaixo do limite
+    if (fanState) {
+      fanState = false;
+      digitalWrite(FAN_PIN, LOW);
+      Serial.print("Ventilador DESLIGADO automaticamente - Temperatura: ");
+      Serial.print(temperature);
+      Serial.println("°C");
+    }
+  }
+}
+
 void loop() {
   // Handle HTTP requests
   server.handleClient();
@@ -234,6 +276,9 @@ void loop() {
       // Read data from BME280 sensor
       float temperature, humidity, pressure, altitude;
       readBME280Data(temperature, humidity, pressure, altitude);
+      
+      // Verificar temperatura e controlar ventilador
+      checkTemperatureAndControlFan(temperature);
       
       // Send sensor data to server
       sendSensorData(temperature, humidity, pressure, altitude);
@@ -262,6 +307,7 @@ void sendSensorData(float temperature, float humidity, float pressure, float alt
   doc["sensor"] = "BME280";
   doc["timestamp"] = millis();
   doc["fan_state"] = fanState ? "on" : "off"; // Incluir estado atual do ventilador
+  doc["auto_control"] = autoFanControl; // Incluir informação sobre o controle automático
   
   // Serialize JSON to string
   String requestBody;

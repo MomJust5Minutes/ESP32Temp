@@ -8,9 +8,16 @@ import fetch from "node-fetch"
 // URL do servidor (altere para o endereço do seu servidor)
 const SERVER_URL = "http://localhost:3000/api/temperature"
 
+// Temperatura limite para ativar o ventilador automaticamente (em Celsius)
+const FAN_TEMPERATURE_THRESHOLD = 25.0
+
 // ==========================================
 // FIM DA CONFIGURAÇÃO DO SERVIDOR
 // ==========================================
+
+// Estado do ventilador
+let fanState = false
+let autoControl = true // Controle automático ativado por padrão
 
 // Base values for different sensors
 const BASE_TEMP = 25      // Temperatura base (°C)
@@ -41,6 +48,34 @@ const PATTERNS = {
 let currentPattern = PATTERNS.NORMAL
 let patternDuration = 0
 const MAX_PATTERN_DURATION = 10 // Duração máxima de cada padrão em ciclos
+
+// Função para controlar o ventilador com base na temperatura
+function checkTemperatureAndControlFan(temperature) {
+  if (!autoControl) {
+    return // Não faz nada se o controle automático estiver desativado
+  }
+  
+  const oldFanState = fanState
+  
+  if (temperature > FAN_TEMPERATURE_THRESHOLD) {
+    // Ativar o ventilador se temperatura acima do limite
+    fanState = true
+  } else {
+    // Desativar o ventilador se temperatura abaixo do limite
+    fanState = false
+  }
+  
+  // Exibir mensagem apenas se o estado do ventilador mudou
+  if (oldFanState !== fanState) {
+    console.log(`[Auto] Ventilador ${fanState ? 'LIGADO' : 'DESLIGADO'} - Temperatura: ${temperature.toFixed(1)}°C (limite: ${FAN_TEMPERATURE_THRESHOLD}°C)`)
+  }
+  
+  // Efeito do ventilador na temperatura (quando ligado)
+  if (fanState && temperature > 22) {
+    // O ventilador faz a temperatura cair um pouco mais rápido
+    currentTemp -= 0.2
+  }
+}
 
 function getNextSensorValues() {
   // Decide se é hora de mudar o padrão
@@ -87,11 +122,16 @@ function getNextSensorValues() {
   
   patternDuration++
 
+  // Verificar temperatura e controlar ventilador
+  checkTemperatureAndControlFan(currentTemp)
+
   return {
     temperature: Number(currentTemp.toFixed(1)),
     humidity: Number(currentHumidity.toFixed(1)),
     pressure: Number(currentPressure.toFixed(1)),
-    altitude: Number(currentAltitude.toFixed(1))
+    altitude: Number(currentAltitude.toFixed(1)),
+    fan_state: fanState ? "on" : "off",
+    auto_control: autoControl
   }
 }
 
@@ -106,6 +146,7 @@ async function sendSensorData() {
       },
       body: JSON.stringify({
         ...sensorData,
+        sensor: "BME280 (Simulado)",
         timestamp: Date.now(),
       }),
     })
@@ -113,7 +154,8 @@ async function sendSensorData() {
     const data = await response.json()
     console.log(
       `[${currentPattern}] Temp: ${sensorData.temperature}°C | Humidity: ${sensorData.humidity}% | ` +
-      `Pressure: ${sensorData.pressure}hPa | Altitude: ${sensorData.altitude}m (${patternDuration}/${MAX_PATTERN_DURATION})`
+      `Pressure: ${sensorData.pressure}hPa | Fan: ${sensorData.fan_state} | ` +
+      `Auto: ${sensorData.auto_control ? "sim" : "não"} (${patternDuration}/${MAX_PATTERN_DURATION})`
     )
   } catch (error) {
     console.error("Erro ao enviar dados do sensor:", error)
@@ -125,6 +167,7 @@ console.log(`Temperatura base: ${BASE_TEMP}°C (±${TEMP_VARIATION}°C)`)
 console.log(`Umidade base: ${BASE_HUMIDITY}% (±${HUMIDITY_VARIATION}%)`)
 console.log(`Pressão base: ${BASE_PRESSURE}hPa (±${PRESSURE_VARIATION}hPa)`)
 console.log(`Altitude base: ${BASE_ALTITUDE}m (±${ALTITUDE_VARIATION}m)`)
+console.log(`Temperatura limite para ativação do ventilador: ${FAN_TEMPERATURE_THRESHOLD}°C`)
 console.log("Padrões disponíveis:", Object.values(PATTERNS).join(", "))
 console.log("\nEnviando dados...")
 

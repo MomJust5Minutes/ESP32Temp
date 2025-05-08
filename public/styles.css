@@ -273,10 +273,13 @@ footer {
 }
 
 .fan-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.5rem;
   text-align: center;
   font-size: 1.1rem;
   font-weight: 500;
-  margin-top: 0.5rem;
 }
 
 #fan-status {
@@ -355,4 +358,42 @@ input:checked + .slider:before {
 
 rect {
   fill: #ffffff; /* changes the color to red */
+}
+
+/* Estilos para o controle automático do ventilador */
+.auto-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.auto-badge {
+  font-size: 0.9rem;
+  padding: 5px 12px;
+  border-radius: 12px;
+  background-color: #e2e8f0;
+  color: #64748b;
+  margin-bottom: 6px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.auto-badge:hover {
+  background-color: #cbd5e1;
+}
+
+.auto-badge.active {
+  background-color: #10b981;
+  color: white;
+}
+
+.auto-badge.active:hover {
+  background-color: #059669;
+}
+
+/* Remover estilos não utilizados */
+.auto-toggle-btn {
+  display: none;
 }

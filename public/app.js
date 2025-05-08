@@ -10,9 +10,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const fanToggle = document.getElementById("fan-toggle")
   const fanIcon = document.getElementById("fan-icon")
   const fanStatus = document.getElementById("fan-status")
+  const autoStatusBtn = document.getElementById("auto-status")
+
+  // Chave para armazenar o estado no localStorage
+  const AUTO_CONTROL_STORAGE_KEY = 'esp32_auto_control_enabled';
 
   // Estado inicial do ventilador
   let isFanActive = false;
+  
+  // Recuperar estado do controle automático do localStorage ou usar valor padrão (true)
+  let isAutoControlActive = localStorage.getItem(AUTO_CONTROL_STORAGE_KEY) !== null 
+    ? localStorage.getItem(AUTO_CONTROL_STORAGE_KEY) === 'true' 
+    : true;
+  
+  // Atualizar a interface com o estado restaurado
+  updateAutoControlUI();
 
   // Initialize WebSocket connection
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -243,7 +255,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // WebSocket event handlers
   socket.onopen = () => {
     console.log("WebSocket connected to:", wsUrl);
+    // Solicitar dados históricos
     socket.send(JSON.stringify({ type: "request-data" }));
+    
+    // Enviar preferência de controle automático
+    setTimeout(() => {
+      sendAutoControlCommand(isAutoControlActive);
+    }, 1000); // Aguardar um segundo para garantir que os dados iniciais foram carregados
   };
 
   socket.onclose = (event) => {
@@ -277,6 +295,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Função para controlar o ventilador
   function toggleFan() {
+    // Se estiver no modo automático, desativar para permitir controle manual
+    if (isAutoControlActive) {
+      isAutoControlActive = false;
+      // Salvar o estado no localStorage
+      localStorage.setItem(AUTO_CONTROL_STORAGE_KEY, isAutoControlActive);
+      updateAutoControlUI();
+      sendAutoControlCommand(false);
+    }
+    
     isFanActive = fanToggle.checked;
     
     if (isFanActive) {
@@ -289,6 +316,26 @@ document.addEventListener("DOMContentLoaded", () => {
       fanStatus.classList.remove("active");
       fanStatus.textContent = "Desligado";
       sendFanCommand(false);
+    }
+  }
+
+  // Nova função para ativar/desativar o modo automático
+  function toggleAutoControl() {
+    isAutoControlActive = !isAutoControlActive;
+    // Salvar o estado no localStorage
+    localStorage.setItem(AUTO_CONTROL_STORAGE_KEY, isAutoControlActive);
+    updateAutoControlUI();
+    sendAutoControlCommand(isAutoControlActive);
+  }
+
+  // Atualizar a interface do controle automático
+  function updateAutoControlUI() {
+    if (isAutoControlActive) {
+      autoStatusBtn.textContent = "Auto: Ativado";
+      autoStatusBtn.classList.add("active");
+    } else {
+      autoStatusBtn.textContent = "Auto: Desativado";
+      autoStatusBtn.classList.remove("active");
     }
   }
 
@@ -309,12 +356,30 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Função para enviar comando de controle automático
+  function sendAutoControlCommand(isAuto) {
+    // Verificar se a conexão WebSocket está aberta
+    if (socket.readyState === WebSocket.OPEN) {
+      const command = {
+        type: "fan_control",
+        value: isAuto ? "auto" : (isFanActive ? "on" : "off")
+      };
+      
+      socket.send(JSON.stringify(command));
+      console.log(`Comando de controle automático enviado: ${isAuto ? "Ativado" : "Desativado"}`);
+    } else {
+      console.error("WebSocket não está conectado. Não foi possível enviar o comando de controle automático.");
+    }
+  }
+
   // Event Listeners
   fanToggle.addEventListener("change", toggleFan);
+  autoStatusBtn.addEventListener("click", toggleAutoControl);
 
   // Lógica para atualizar o estado do ventilador com base nos dados recebidos
   function updateFanState(data) {
     if (data && data.fan_state !== undefined) {
+      // Atualizar somente o estado do ventilador
       isFanActive = data.fan_state === "on";
       fanToggle.checked = isFanActive;
       
@@ -326,6 +391,15 @@ document.addEventListener("DOMContentLoaded", () => {
         fanIcon.classList.remove("active");
         fanStatus.classList.remove("active");
         fanStatus.textContent = "Desligado";
+      }
+      
+      // Somente atualizar o estado do controle automático se for uma resposta 
+      // explícita a um comando de controle automático (não em atualizações regulares)
+      if (data.command_response && data.auto_control !== undefined) {
+        isAutoControlActive = data.auto_control;
+        // Salvar o estado atualizado no localStorage
+        localStorage.setItem(AUTO_CONTROL_STORAGE_KEY, isAutoControlActive);
+        updateAutoControlUI();
       }
     }
   }
@@ -381,8 +455,13 @@ document.addEventListener("DOMContentLoaded", () => {
         noDataMessage.style.display = "none";
       }
 
-      // Atualizar estado do ventilador
-      updateFanState(data);
+      // Atualizar estado do ventilador, mas preservar preferência de controle automático
+      // se não for uma resposta a um comando específico
+      const updatedData = {...data};
+      if (!updatedData.command_response) {
+        delete updatedData.auto_control;
+      }
+      updateFanState(updatedData);
     } catch (error) {
       console.error("Error updating sensor displays:", error);
     }
@@ -506,9 +585,12 @@ document.addEventListener("DOMContentLoaded", () => {
     temperatureChart.update()
     allSensorsChart.update()
 
-    // Update sensor displays if we have data
+    // Update sensor displays if we have data, mas mantenha a preferência do modo automático
     if (data.length > 0) {
-      updateSensorReadings(data[data.length - 1])
+      const latestData = {...data[data.length - 1]};
+      // Sobrescrever temporariamente o auto_control para não afetar a preferência do usuário
+      delete latestData.auto_control;
+      updateSensorReadings(latestData);
     }
   }
 

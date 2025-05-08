@@ -64,7 +64,7 @@ app.get("/api/test", (req, res) => {
 // Route to receive sensor data from ESP32
 app.post("/api/temperature", (req, res) => {
   try {
-    const { temperature, humidity, pressure, altitude } = req.body
+    const { temperature, humidity, pressure, altitude, fan_state, auto_control } = req.body
     
     if (temperature === undefined) {
       return res.status(400).json({ error: "Temperature data is required" })
@@ -87,6 +87,8 @@ app.post("/api/temperature", (req, res) => {
       humidity: parseFloat(humidity) || null,
       pressure: parseFloat(pressure) || null,
       altitude: parseFloat(altitude) || null,
+      fan_state: fan_state || "off",
+      auto_control: auto_control !== undefined ? auto_control : true,
       timestamp: Date.now(),
       type: "sensor-update"
     }
@@ -164,6 +166,42 @@ wss.on("connection", (ws, req) => {
           type: "sensor-history",
           data: sensorReadings
         }))
+      }
+      
+      // Handle fan control commands
+      if (data.type === "fan_control" && data.value !== undefined) {
+        console.log(`Fan control command received: ${data.value}`);
+        
+        // Se temos ao menos uma leitura de sensor
+        if (sensorReadings.length > 0) {
+          // Pegar a leitura mais recente
+          const lastReading = sensorReadings[sensorReadings.length - 1];
+          
+          // Atualizar o estado do ventilador ou controle automático
+          if (data.value === "auto") {
+            lastReading.auto_control = true;
+            console.log("Auto control mode activated");
+          } else {
+            lastReading.auto_control = false;
+            lastReading.fan_state = data.value;
+            console.log(`Fan state set to: ${data.value}`);
+          }
+          
+          // Notificar todos os clientes sobre a mudança
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              try {
+                client.send(JSON.stringify({
+                  type: "sensor-update",
+                  command_response: true,
+                  ...lastReading
+                }));
+              } catch (error) {
+                console.error("Error sending fan update to client:", error);
+              }
+            }
+          });
+        }
       }
     } catch (error) {
       console.warn(`Received invalid JSON from client ${clientIp}`)
