@@ -6,7 +6,7 @@ import fetch from "node-fetch"
 // ==========================================
 
 // URL do servidor (altere para o endereço do seu servidor)
-const SERVER_URL = "http://localhost:3001/api/temperature"
+const SERVER_URL = "http://localhost:3000/api/temperature"
 
 // ==========================================
 // FIM DA CONFIGURAÇÃO DO SERVIDOR

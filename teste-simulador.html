@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste do Simulador ESP32</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background-color: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      color: #333;
+    }
+    .card {
+      background-color: #f9f9f9;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-left: 4px solid #3b82f6;
+    }
+    .readings {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .reading-item {
+      background-color: white;
+      padding: 15px;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .reading-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #3b82f6;
+      margin: 10px 0;
+    }
+    .reading-label {
+      color: #666;
+      font-size: 14px;
+    }
+    button {
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-right: 10px;
+    }
+    button:hover {
+      background-color: #2563eb;
+    }
+    .fan-status {
+      display: flex;
+      align-items: center;
+      margin: 20px 0;
+    }
+    .fan-indicator {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background-color: #dc2626;
+      margin-right: 10px;
+      transition: background-color 0.3s;
+    }
+    .fan-indicator.active {
+      background-color: #10b981;
+    }
+    .fan-text {
+      font-weight: bold;
+    }
+    .fan-controls {
+      margin: 20px 0;
+    }
+    .log-container {
+      background-color: #1e293b;
+      color: #94a3b8;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+    .log-entry {
+      margin-bottom: 5px;
+      font-size: 14px;
+    }
+    .timestamp {
+      color: #64748b;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Teste do Simulador ESP32</h1>
+    
+    <div class="card">
+      <p>Este é um teste para o simulador ESP32. O simulador deve estar rodando em http://localhost:3001.</p>
+    </div>
+    
+    <h2>Leituras do Sensor</h2>
+    <div class="readings">
+      <div class="reading-item">
+        <div class="reading-label">Temperatura</div>
+        <div class="reading-value" id="temperature">--</div>
+        <div class="reading-label">°C</div>
+      </div>
+      <div class="reading-item">
+        <div class="reading-label">Umidade</div>
+        <div class="reading-value" id="humidity">--</div>
+        <div class="reading-label">%</div>
+      </div>
+      <div class="reading-item">
+        <div class="reading-label">Pressão</div>
+        <div class="reading-value" id="pressure">--</div>
+        <div class="reading-label">hPa</div>
+      </div>
+      <div class="reading-item">
+        <div class="reading-label">Altitude</div>
+        <div class="reading-value" id="altitude">--</div>
+        <div class="reading-label">m</div>
+      </div>
+    </div>
+    
+    <h2>Controle do Ventilador</h2>
+    <div class="fan-status">
+      <div class="fan-indicator" id="fan-indicator"></div>
+      <div class="fan-text" id="fan-text">Desconhecido</div>
+    </div>
+    
+    <div class="fan-controls">
+      <button id="btn-fan-on">Ligar Ventilador</button>
+      <button id="btn-fan-off">Desligar Ventilador</button>
+      <button id="btn-refresh">Atualizar Dados</button>
+    </div>
+    
+    <h2>Log de Comunicação</h2>
+    <div class="log-container" id="log-container">
+      <div class="log-entry">Conectando ao simulador...</div>
+    </div>
+  </div>
+  
+  <script>
+    // Configuração do simulador
+    const SIMULATOR_URL = 'http://localhost:3001';
+    
+    // Elementos da interface
+    const temperatureElement = document.getElementById('temperature');
+    const humidityElement = document.getElementById('humidity');
+    const pressureElement = document.getElementById('pressure');
+    const altitudeElement = document.getElementById('altitude');
+    const fanIndicator = document.getElementById('fan-indicator');
+    const fanText = document.getElementById('fan-text');
+    const btnFanOn = document.getElementById('btn-fan-on');
+    const btnFanOff = document.getElementById('btn-fan-off');
+    const btnRefresh = document.getElementById('btn-refresh');
+    const logContainer = document.getElementById('log-container');
+    
+    // Adicionar entrada ao log
+    function addLogEntry(message) {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      
+      const timestamp = new Date().toLocaleTimeString();
+      entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+      
+      logContainer.appendChild(entry);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+    
+    // Função para obter dados do sensor
+    function getSensorData() {
+      addLogEntry('Solicitando dados do sensor...');
+      
+      fetch(`${SIMULATOR_URL}/api/sensor`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Erro na requisição: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          addLogEntry(`Dados recebidos: Temperatura=${data.temperature.toFixed(1)}°C, Umidade=${data.humidity.toFixed(1)}%, Ventilador=${data.fan_state}`);
+          
+          // Atualizar elementos da interface
+          temperatureElement.textContent = data.temperature.toFixed(1);
+          humidityElement.textContent = data.humidity.toFixed(1);
+          pressureElement.textContent = data.pressure.toFixed(1);
+          altitudeElement.textContent = data.altitude.toFixed(1);
+          
+          // Atualizar estado do ventilador
+          updateFanState(data.fan_state === 'on');
+        })
+        .catch(error => {
+          addLogEntry(`Erro ao obter dados: ${error.message}`);
+          console.error('Erro:', error);
+        });
+    }
+    
+    // Função para obter estado do ventilador
+    function getFanState() {
+      addLogEntry('Verificando estado do ventilador...');
+      
+      fetch(`${SIMULATOR_URL}/api/fan`)
+        .then(response => response.json())
+        .then(data => {
+          addLogEntry(`Estado do ventilador: ${data.fan_state}`);
+          updateFanState(data.fan_state === 'on');
+        })
+        .catch(error => {
+          addLogEntry(`Erro ao verificar ventilador: ${error.message}`);
+          console.error('Erro:', error);
+        });
+    }
+    
+    // Função para atualizar a interface do ventilador
+    function updateFanState(isOn) {
+      if (isOn) {
+        fanIndicator.classList.add('active');
+        fanText.textContent = 'Ventilador LIGADO';
+      } else {
+        fanIndicator.classList.remove('active');
+        fanText.textContent = 'Ventilador DESLIGADO';
+      }
+    }
+    
+    // Função para enviar comando do ventilador
+    function sendFanCommand(isOn) {
+      const command = {
+        value: isOn ? 'on' : 'off'
+      };
+      
+      addLogEntry(`Enviando comando: ventilador ${isOn ? 'LIGAR' : 'DESLIGAR'}`);
+      
+      fetch(`${SIMULATOR_URL}/api/fan`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(command)
+      })
+      .then(response => response.json())
+      .then(data => {
+        addLogEntry(`Resposta: ${JSON.stringify(data)}`);
+        updateFanState(data.fan_state === 'on');
+      })
+      .catch(error => {
+        addLogEntry(`Erro ao enviar comando: ${error.message}`);
+        console.error('Erro:', error);
+      });
+    }
+    
+    // Configurar eventos dos botões
+    btnFanOn.addEventListener('click', () => sendFanCommand(true));
+    btnFanOff.addEventListener('click', () => sendFanCommand(false));
+    btnRefresh.addEventListener('click', getSensorData);
+    
+    // Verificar conexão inicial
+    addLogEntry(`Conectando ao simulador em ${SIMULATOR_URL}...`);
+    
+    // Função de inicialização
+    function init() {
+      // Obter dados iniciais
+      getSensorData();
+      
+      // Configurar atualização periódica
+      setInterval(getSensorData, 10000); // Atualizar a cada 10 segundos
+    }
+    
+    // Iniciar após carregar a página
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html> 

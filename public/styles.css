@@ -10,12 +10,18 @@
   --humidity-color: rgb(6, 182, 212);
   --pressure-color: rgb(139, 92, 246);
   --altitude-color: rgb(245, 158, 11);
+  --fan-color: rgb(34, 197, 94);
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -26,13 +32,16 @@ body {
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem 2rem;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 header {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 h1 {
@@ -43,34 +52,56 @@ h1 {
 main {
   display: grid;
   grid-template-columns: 1fr 2fr;
-  gap: 2rem;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
 }
 
 .current-readings {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .readings-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
+  width: 100%;
 }
 
 .charts-section {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
+  height: 100%;
+  overflow-y: auto;
 }
 
 @media (max-width: 1024px) {
+  html, body {
+    height: auto;
+    overflow: auto;
+  }
+  
+  .container {
+    height: auto;
+  }
+  
   main {
     grid-template-columns: 1fr;
   }
   
   .readings-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .current-readings, .charts-section {
+    overflow-y: visible;
   }
 }
 
@@ -80,11 +111,36 @@ main {
   }
 }
 
+@media (max-width: 1300px) {
+  main {
+    gap: 1rem;
+  }
+  
+  .card {
+    padding: 0.8rem;
+  }
+  
+  .sensor-display {
+    margin: 0.5rem 0;
+  }
+  
+  #current-temp, 
+  #current-humidity, 
+  #current-pressure, 
+  #current-altitude {
+    font-size: 2.5rem;
+  }
+  
+  .unit {
+    font-size: 1.2rem;
+  }
+}
+
 .card {
   background-color: var(--card-background);
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  padding: 1.5rem;
+  padding: 1rem;
   height: 100%;
 }
 
@@ -167,18 +223,132 @@ h2 {
   text-align: center;
   font-size: 0.9rem;
   color: #64748b;
-  margin-top: 1rem;
 }
 
 .chart-container {
-  height: 300px;
+  height: 250px;
   position: relative;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 footer {
-  margin-top: 2rem;
+  margin-top: 1rem;
   text-align: center;
   font-size: 0.9rem;
   color: #64748b;
+  padding: 0.5rem 0;
+}
+
+/* Estilos do ventilador */
+.fan-card {
+  padding: 1rem;
+  position: relative;
+  width: 90%;
+  height: auto;
+  margin: 1rem auto;
+  max-width: 252px;
+  align-self: center;
+}
+
+.fan-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 1rem 0;
+}
+
+.fan-icon {
+  width: 96px;
+  height: 48px;
+  transition: transform 0.3s ease;
+}
+
+.fan-icon.active {
+  animation: rotate 2s infinite linear;
+}
+
+.fan-status {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+#fan-status {
+  transition: color 0.3s ease;
+}
+
+#fan-status.active {
+  color: var(--fan-color);
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: var(--fan-color);
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px var(--fan-color);
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+/* Animação de rotação do ventilador */
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+rect {
+  fill: #ffffff; /* changes the color to red */
 }

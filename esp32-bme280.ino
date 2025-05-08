@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include <Adafruit_BME280.h>
+#include <WebServer.h>
 
 // ==========================================
 // CONFIGURAÇÕES DO USUÁRIO - ALTERE AQUI
@@ -13,11 +14,18 @@ const char* ssid = "COLOQUE_SEU_SSID_AQUI";
 const char* password = "COLOQUE_SUA_SENHA_AQUI";
 
 // Server details - ALTERE PARA O IP DO SEU SERVIDOR
-const char* serverUrl = "http://SEU_IP_SERVIDOR:3001/api/temperature";
+const char* serverUrl = "http://SEU_IP_SERVIDOR:3000/api/temperature";
 
 // ==========================================
 // FIM DAS CONFIGURAÇÕES DO USUÁRIO
 // ==========================================
+
+// Definição do pino do ventilador
+const int FAN_PIN = 5;
+bool fanState = false;
+
+// Servidor HTTP local
+WebServer server(80);
 
 // BME280 sensor setup
 Adafruit_BME280 bme; // I2C interface
@@ -29,6 +37,10 @@ unsigned long timerDelay = 5000; // Send readings every 5 seconds
 
 void setup() {
   Serial.begin(115200);
+  
+  // Inicializar o pino do ventilador como saída
+  pinMode(FAN_PIN, OUTPUT);
+  digitalWrite(FAN_PIN, LOW); // Desliga o ventilador inicialmente
   
   // Initialize BME280 sensor
   if (!bme.begin(0x76)) { // Try address 0x76 (common for BME280 modules)
@@ -67,8 +79,75 @@ void setup() {
   Serial.print("Connected to WiFi network with IP Address: ");
   Serial.println(WiFi.localIP());
 
+  // Configurar rotas do servidor HTTP
+  server.on("/api/fan", HTTP_POST, handleFanControl);
+  server.on("/api/fan", HTTP_GET, getFanStatus);
+  
+  // Iniciar o servidor HTTP
+  server.begin();
+  Serial.println("Servidor HTTP iniciado na porta 80");
+  
   // Test server connection
   testServerConnection();
+}
+
+// Função para lidar com controle do ventilador
+void handleFanControl() {
+  String message = "";
+  bool newFanState = false;
+  bool validCommand = false;
+  
+  if (server.hasArg("plain")) {
+    message = server.arg("plain");
+    
+    // Analisar o JSON recebido
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, message);
+    
+    if (!error) {
+      if (doc.containsKey("value")) {
+        String command = doc["value"];
+        if (command == "on") {
+          newFanState = true;
+          validCommand = true;
+        } else if (command == "off") {
+          newFanState = false;
+          validCommand = true;
+        }
+      }
+    }
+  }
+  
+  if (validCommand) {
+    // Atualizar o estado do ventilador
+    fanState = newFanState;
+    digitalWrite(FAN_PIN, fanState ? HIGH : LOW);
+    
+    StaticJsonDocument<100> response;
+    response["success"] = true;
+    response["fan_state"] = fanState ? "on" : "off";
+    
+    String responseJson;
+    serializeJson(response, responseJson);
+    
+    server.send(200, "application/json", responseJson);
+    Serial.print("Ventilador ");
+    Serial.println(fanState ? "LIGADO" : "DESLIGADO");
+  } else {
+    // Comando inválido
+    server.send(400, "application/json", "{\"error\":\"Comando inválido. Use {\\\"value\\\":\\\"on\\\"} ou {\\\"value\\\":\\\"off\\\"}\"}");
+  }
+}
+
+// Função para obter o status atual do ventilador
+void getFanStatus() {
+  StaticJsonDocument<100> response;
+  response["fan_state"] = fanState ? "on" : "off";
+  
+  String responseJson;
+  serializeJson(response, responseJson);
+  
+  server.send(200, "application/json", responseJson);
 }
 
 void testServerConnection() {
@@ -145,6 +224,9 @@ void readBME280Data(float &temperature, float &humidity, float &pressure, float 
 }
 
 void loop() {
+  // Handle HTTP requests
+  server.handleClient();
+  
   // Check if it's time to send a new reading
   if ((millis() - lastTime) > timerDelay) {
     // Check WiFi connection status
@@ -179,6 +261,7 @@ void sendSensorData(float temperature, float humidity, float pressure, float alt
   doc["altitude"] = altitude;
   doc["sensor"] = "BME280";
   doc["timestamp"] = millis();
+  doc["fan_state"] = fanState ? "on" : "off"; // Incluir estado atual do ventilador
   
   // Serialize JSON to string
   String requestBody;

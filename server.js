@@ -227,7 +227,7 @@ app.use((err, req, res, next) => {
 })
 
 // Start server
-const PORT = process.env.PORT || 3002
+const PORT = process.env.PORT || 3000
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`)
   console.log(`Server accessible at http://YOUR_SERVER_URL:${PORT}`)

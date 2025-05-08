@@ -7,6 +7,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const lastUpdatedElement = document.getElementById("last-updated")
   const noDataMessage = document.getElementById("no-data-message")
   const refreshButton = document.getElementById("refresh-data")
+  const fanToggle = document.getElementById("fan-toggle")
+  const fanIcon = document.getElementById("fan-icon")
+  const fanStatus = document.getElementById("fan-status")
+
+  // Estado inicial do ventilador
+  let isFanActive = false;
 
   // Initialize WebSocket connection
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -269,6 +275,61 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // Função para controlar o ventilador
+  function toggleFan() {
+    isFanActive = fanToggle.checked;
+    
+    if (isFanActive) {
+      fanIcon.classList.add("active");
+      fanStatus.classList.add("active");
+      fanStatus.textContent = "Ligado";
+      sendFanCommand(true);
+    } else {
+      fanIcon.classList.remove("active");
+      fanStatus.classList.remove("active");
+      fanStatus.textContent = "Desligado";
+      sendFanCommand(false);
+    }
+  }
+
+  // Função para enviar comandos do ventilador para o ESP32
+  function sendFanCommand(isOn) {
+    // Verificar se a conexão WebSocket está aberta
+    if (socket.readyState === WebSocket.OPEN) {
+      const command = {
+        type: "fan_control",
+        value: isOn ? "on" : "off"
+      };
+      
+      socket.send(JSON.stringify(command));
+      console.log(`Comando do ventilador enviado: ${isOn ? "Ligado" : "Desligado"}`);
+    } else {
+      console.error("WebSocket não está conectado. Não foi possível enviar o comando do ventilador.");
+      // Opcionalmente, exibir uma mensagem ao usuário sobre falha na conexão
+    }
+  }
+
+  // Event Listeners
+  fanToggle.addEventListener("change", toggleFan);
+
+  // Lógica para atualizar o estado do ventilador com base nos dados recebidos
+  function updateFanState(data) {
+    if (data && data.fan_state !== undefined) {
+      isFanActive = data.fan_state === "on";
+      fanToggle.checked = isFanActive;
+      
+      if (isFanActive) {
+        fanIcon.classList.add("active");
+        fanStatus.classList.add("active");
+        fanStatus.textContent = "Ligado";
+      } else {
+        fanIcon.classList.remove("active");
+        fanStatus.classList.remove("active");
+        fanStatus.textContent = "Desligado";
+      }
+    }
+  }
+
   // Update sensor readings display with error handling
   function updateSensorReadings(data) {
     try {
@@ -319,6 +380,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (noDataMessage.style.display !== "none") {
         noDataMessage.style.display = "none";
       }
+
+      // Atualizar estado do ventilador
+      updateFanState(data);
     } catch (error) {
       console.error("Error updating sensor displays:", error);
     }
